@@ -11,7 +11,7 @@ const isAiEnabled = () => Boolean(process.env.GEMINI_API_KEY);
 
 const askAI = async (systemPrompt, userPrompt) => {
   if (!isAiEnabled()) return null;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   try {
     const res = await fetch(url, {

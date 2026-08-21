@@ -11,5 +11,6 @@ const makeStorage = (subfolder) =>
 const documentUpload = multer({ storage: makeStorage('documents'), limits: { fileSize: 15 * 1024 * 1024 } });
 const resumeUpload = multer({ storage: makeStorage('resumes'), limits: { fileSize: 15 * 1024 * 1024 } });
 const recordingUpload = multer({ storage: makeStorage('recordings'), limits: { fileSize: 500 * 1024 * 1024 } });
+const leaveAttachmentUpload = multer({ storage: makeStorage('documents'), limits: { fileSize: 15 * 1024 * 1024 } });
 
-module.exports = { documentUpload, resumeUpload, recordingUpload };
+module.exports = { documentUpload, resumeUpload, recordingUpload, leaveAttachmentUpload };

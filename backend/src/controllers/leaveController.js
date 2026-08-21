@@ -43,6 +43,7 @@ const createLeaveRequest = asyncHandler(async (req, res) => {
     endDate: end,
     days,
     reason,
+    attachmentUrl: req.file ? `/uploads/documents/${req.file.filename}` : undefined,
   });
 
   created(res, {

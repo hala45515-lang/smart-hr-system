@@ -13,6 +13,14 @@ const documentSchema = new mongoose.Schema(
     issueDate: { type: Date },
     expiryDate: { type: Date },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    status: {
+      type: String,
+      enum: ['pending_review', 'approved', 'rejected'],
+      default: 'pending_review',
+    },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: { type: Date },
+    reviewNote: { type: String },
   },
   { timestamps: true }
 );

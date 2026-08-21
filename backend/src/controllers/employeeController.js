@@ -3,6 +3,7 @@ const { ApiError, ok, created } = require('../utils/apiResponse');
 const Employee = require('../models/Employee');
 const User = require('../models/User');
 const CareerEvent = require('../models/CareerEvent');
+const { logAudit } = require('../services/auditService');
 
 // @desc  HR admin creates a full employee (user account + employee profile)
 // @route POST /api/employees
@@ -108,6 +109,33 @@ const addCourse = asyncHandler(async (req, res) => {
   ok(res, employee, 'Course added');
 });
 
+// @desc  Change a user's role (employee/manager/hr_admin) — logged to the Audit Log
+// @route PATCH /api/employees/:id/role
+const changeRole = asyncHandler(async (req, res) => {
+  const { role } = req.body;
+  if (!['employee', 'manager', 'hr_admin'].includes(role)) {
+    throw new ApiError(400, "role must be one of 'employee', 'manager', 'hr_admin'");
+  }
+
+  const employee = await Employee.findById(req.params.id).populate('user', 'name email role');
+  if (!employee) throw new ApiError(404, 'Employee not found');
+
+  const previousRole = employee.user.role;
+  if (previousRole === role) throw new ApiError(400, `User already has the '${role}' role`);
+
+  await User.findByIdAndUpdate(employee.user._id, { role });
+
+  await logAudit({
+    actor: req.user._id,
+    action: 'role_change',
+    targetType: 'User',
+    targetId: employee.user._id,
+    changes: { from: previousRole, to: role },
+  });
+
+  ok(res, { employeeId: employee._id, userId: employee.user._id, previousRole, role }, 'Role updated');
+});
+
 // @desc  Deactivate/terminate an employee
 // @route DELETE /api/employees/:id
 const deactivateEmployee = asyncHandler(async (req, res) => {
@@ -131,5 +159,6 @@ module.exports = {
   updateEmployee,
   addSkill,
   addCourse,
+  changeRole,
   deactivateEmployee,
 };

@@ -11,6 +11,9 @@ const payrollSchema = new mongoose.Schema(
     netSalary: { type: Number, required: true },
     paidAt: { type: Date },
     payslipUrl: { type: String },
+    absentDays: { type: Number, default: 0 },
+    attendanceDeduction: { type: Number, default: 0 },
+    generatedFromAttendance: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

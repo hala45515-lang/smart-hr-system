@@ -4,9 +4,18 @@ const LeaveBalance = require('../models/LeaveBalance');
 const Task = require('../models/Task');
 const Document = require('../models/Document');
 const Employee = require('../models/Employee');
+const Attendance = require('../models/Attendance');
+const User = require('../models/User');
 
-const createNotification = async ({ userId, type, title, message, meta }) =>
-  Notification.create({ user: userId, type, title, message, meta });
+/**
+ * Creates an in-app notification, unless the recipient has opted out via
+ * their notificationPreferences.inApp setting.
+ */
+const createNotification = async ({ userId, type, title, message, meta }) => {
+  const user = await User.findById(userId).select('notificationPreferences');
+  if (user && user.notificationPreferences?.inApp === false) return null;
+  return Notification.create({ user: userId, type, title, message, meta });
+};
 
 /**
  * Leave conflict detection: checks whether an employee's requested leave
@@ -95,10 +104,82 @@ const checkExpiringDocuments = async (daysAhead = 30) => {
   }
 };
 
+/**
+ * Scans for employees who checked in today but never checked out (past a cutoff hour).
+ */
+const checkForgottenCheckouts = async (cutoffHour = 20) => {
+  const now = new Date();
+  if (now.getHours() < cutoffHour) return;
+
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  const records = await Attendance.find({
+    date: { $gte: start, $lte: end },
+    checkIn: { $ne: null },
+    checkOut: null,
+  }).populate({ path: 'employee', populate: 'user' });
+
+  for (const record of records) {
+    if (!record.employee?.user) continue;
+    await createNotification({
+      userId: record.employee.user._id || record.employee.user,
+      type: 'general',
+      title: 'You forgot to check out',
+      message: `You checked in today but never checked out. Please update your attendance if needed.`,
+      meta: { attendanceId: record._id },
+    });
+  }
+};
+
+/**
+ * Scans the current month's attendance for employees with repeated lateness
+ * (>= threshold late days) and notifies their manager and HR admins.
+ */
+const checkRepeatedLateness = async (threshold = 3) => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const lateCounts = await Attendance.aggregate([
+    { $match: { date: { $gte: start, $lte: end }, status: 'late' } },
+    { $group: { _id: '$employee', count: { $sum: 1 } } },
+    { $match: { count: { $gte: threshold } } },
+  ]);
+  if (!lateCounts.length) return;
+
+  const hrAdmins = await User.find({ role: 'hr_admin' }).select('_id');
+
+  for (const entry of lateCounts) {
+    const employee = await Employee.findById(entry._id).populate('user', 'name').populate('manager');
+    if (!employee) continue;
+
+    const recipients = new Set(hrAdmins.map((u) => String(u._id)));
+    if (employee.manager) {
+      const manager = await Employee.findById(employee.manager).select('user');
+      if (manager?.user) recipients.add(String(manager.user));
+    }
+
+    for (const userId of recipients) {
+      await createNotification({
+        userId,
+        type: 'general',
+        title: 'Repeated lateness detected',
+        message: `${employee.user?.name || 'An employee'} has been late ${entry.count} time(s) this month.`,
+        meta: { employeeId: employee._id, lateCount: entry.count },
+      });
+    }
+  }
+};
+
 module.exports = {
   createNotification,
   findLeaveConflicts,
   checkLowLeaveBalances,
   checkUpcomingTasks,
   checkExpiringDocuments,
+  checkForgottenCheckouts,
+  checkRepeatedLateness,
 };

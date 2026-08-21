@@ -146,6 +146,18 @@
           }
         },
         {
+          "name": "Change Role (Audit Logged)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"manager\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}/role", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}", "role"] }
+          }
+        },
+        {
           "name": "Deactivate Employee",
           "request": {
             "method": "DELETE",
@@ -327,6 +339,18 @@
           }
         },
         {
+          "name": "Review Document (Approve/Reject)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"note\": \"Looks good\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/vault/document/{{documentId}}/review", "host": ["{{base_url}}"], "path": ["vault", "document", "{{documentId}}", "review"] }
+          }
+        },
+        {
           "name": "Delete Document",
           "request": {
             "method": "DELETE",
@@ -382,24 +406,36 @@
           "name": "Create Leave Request (Me)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"leaveType\": \"{{leaveTypeId}}\",\n  \"startDate\": \"2026-09-01\",\n  \"endDate\": \"2026-09-05\",\n  \"reason\": \"Family trip\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                { "key": "leaveType", "type": "text", "value": "{{leaveTypeId}}" },
+                { "key": "startDate", "type": "text", "value": "2026-09-01" },
+                { "key": "endDate", "type": "text", "value": "2026-09-05" },
+                { "key": "reason", "type": "text", "value": "Family trip" },
+                { "key": "attachment", "type": "file", "src": "", "disabled": true }
+              ]
             },
-            "url": { "raw": "{{base_url}}/leave/requests", "host": ["{{base_url}}"], "path": ["leave", "requests"] }
+            "url": { "raw": "{{base_url}}/leave/requests", "host": ["{{base_url}}"], "path": ["leave", "requests"] },
+            "description": "The 'attachment' field is optional — enable it and pick a file (e.g. a medical report) to attach a supporting document."
           }
         },
         {
           "name": "Create Leave Request For Employee",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"leaveType\": \"{{leaveTypeId}}\",\n  \"startDate\": \"2026-09-01\",\n  \"endDate\": \"2026-09-05\",\n  \"reason\": \"Family trip\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                { "key": "leaveType", "type": "text", "value": "{{leaveTypeId}}" },
+                { "key": "startDate", "type": "text", "value": "2026-09-01" },
+                { "key": "endDate", "type": "text", "value": "2026-09-05" },
+                { "key": "reason", "type": "text", "value": "Family trip" },
+                { "key": "attachment", "type": "file", "src": "", "disabled": true }
+              ]
             },
-            "url": { "raw": "{{base_url}}/leave/{{employeeId}}/requests", "host": ["{{base_url}}"], "path": ["leave", "{{employeeId}}", "requests"] }
+            "url": { "raw": "{{base_url}}/leave/{{employeeId}}/requests", "host": ["{{base_url}}"], "path": ["leave", "{{employeeId}}", "requests"] },
+            "description": "The 'attachment' field is optional — enable it and pick a file (e.g. a medical report) to attach a supporting document."
           }
         },
         {
@@ -687,6 +723,19 @@
             },
             "url": { "raw": "{{base_url}}/candidates/{{candidateId}}/stage", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}", "stage"] }
           }
+        },
+        {
+          "name": "Hire Candidate (Convert to Employee)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"EMP-2001\",\n  \"department\": \"{{departmentId}}\",\n  \"position\": \"Backend Developer\",\n  \"level\": \"Mid\",\n  \"hireDate\": \"2026-09-01\",\n  \"baseSalary\": 5500\n}"
+            },
+            "url": { "raw": "{{base_url}}/candidates/{{candidateId}}/hire", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}", "hire"] },
+            "description": "hr_admin only. Creates a User + Employee record from the candidate and marks their stage as 'hired'. 'password' is optional in the body — a random one is generated if omitted."
+          }
         }
       ]
     },
@@ -714,9 +763,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"candidate\": \"{{candidateId}}\",\n  \"job\": \"{{jobId}}\",\n  \"interviewers\": [\"{{employeeId}}\"],\n  \"type\": \"technical\",\n  \"scheduledAt\": \"2026-09-10T10:00:00.000Z\",\n  \"durationMinutes\": 45\n}"
+              "raw": "{\n  \"candidate\": \"{{candidateId}}\",\n  \"job\": \"{{jobId}}\",\n  \"interviewers\": [\"{{employeeId}}\"],\n  \"type\": \"technical\",\n  \"scheduledAt\": \"2026-09-10T10:00:00.000Z\",\n  \"durationMinutes\": 45,\n  \"force\": false\n}"
             },
-            "url": { "raw": "{{base_url}}/interviews", "host": ["{{base_url}}"], "path": ["interviews"] }
+            "url": { "raw": "{{base_url}}/interviews", "host": ["{{base_url}}"], "path": ["interviews"] },
+            "description": "Omit 'scheduledAt' to let Smart Scheduling auto-find the next open slot. If 'scheduledAt' is given and it conflicts with an existing interview for the same interviewer(s), the API returns 409 unless 'force: true' is set."
           }
         },
         {
@@ -898,7 +948,29 @@
               "mode": "raw",
               "raw": "{\n  \"month\": 8,\n  \"year\": 2026,\n  \"baseSalary\": 6000,\n  \"bonuses\": 200,\n  \"deductions\": 50,\n  \"payslipUrl\": \"https://example.com/payslip.pdf\"\n}"
             },
-            "url": { "raw": "{{base_url}}/payroll/{{employeeId}}", "host": ["{{base_url}}"], "path": ["payroll", "{{employeeId}}"] }
+            "url": { "raw": "{{base_url}}/payroll/{{employeeId}}", "host": ["{{base_url}}"], "path": ["payroll", "{{employeeId}}"] },
+            "description": "Manual payroll entry — you supply baseSalary directly. For an attendance-based calculation, use 'Generate Payroll (Auto, from Attendance)' instead."
+          }
+        },
+        {
+          "name": "Generate Payroll (Auto, from Attendance)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": 8,\n  \"year\": 2026,\n  \"bonuses\": 200,\n  \"deductions\": 0\n}"
+            },
+            "url": { "raw": "{{base_url}}/payroll/{{employeeId}}/generate", "host": ["{{base_url}}"], "path": ["payroll", "{{employeeId}}", "generate"] },
+            "description": "Uses the employee's baseSalary and their attendance record for the month (working week: Sun-Thu) to compute a per-day deduction for each unpaid absence, then applies optional bonuses/deductions on top."
+          }
+        },
+        {
+          "name": "Download Payslip PDF",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/payroll/slip/{{payrollId}}/pdf", "host": ["{{base_url}}"], "path": ["payroll", "slip", "{{payrollId}}", "pdf"] },
+            "description": "Accessible to the owning employee, their manager, or HR. Returns a formatted PDF payslip as a binary download."
           }
         }
       ]
@@ -925,6 +997,139 @@
           "request": {
             "method": "PATCH",
             "url": { "raw": "{{base_url}}/notifications/{{notificationId}}/read", "host": ["{{base_url}}"], "path": ["notifications", "{{notificationId}}", "read"] }
+          }
+        },
+        {
+          "name": "Get Notification Preferences",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/notifications/preferences", "host": ["{{base_url}}"], "path": ["notifications", "preferences"] }
+          }
+        },
+        {
+          "name": "Update Notification Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inApp\": true,\n  \"email\": false\n}"
+            },
+            "url": { "raw": "{{base_url}}/notifications/preferences", "host": ["{{base_url}}"], "path": ["notifications", "preferences"] },
+            "description": "'inApp' controls whether in-app notifications are created for this user. 'email' is stored as a preference flag but does not currently trigger real email delivery (no mail service is configured in this project)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get HR Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/dashboard", "host": ["{{base_url}}"], "path": ["dashboard"] },
+            "description": "manager/hr_admin only. Returns today's attendance counts, pending leave requests, documents expiring within 30 days, this month's payroll total, and a 7-day attendance trend."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Attendance Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/attendance?month=8&year=2026&department={{departmentId}}",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "attendance"],
+              "query": [
+                { "key": "month", "value": "8" },
+                { "key": "year", "value": "2026" },
+                { "key": "department", "value": "{{departmentId}}" }
+              ]
+            },
+            "description": "Monthly present/absent/late day counts and hours worked per employee, optionally filtered by department."
+          }
+        },
+        {
+          "name": "Export Attendance Report (Excel/PDF)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/attendance/export?month=8&year=2026&format=excel",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "attendance", "export"],
+              "query": [
+                { "key": "month", "value": "8" },
+                { "key": "year", "value": "2026" },
+                { "key": "format", "value": "excel", "description": "excel | pdf" }
+              ]
+            },
+            "description": "Downloads the same report as a binary file. Set format=pdf for a PDF instead of an .xlsx."
+          }
+        },
+        {
+          "name": "Turnover Rate Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/turnover?month=8&year=2026",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "turnover"],
+              "query": [
+                { "key": "month", "value": "8" },
+                { "key": "year", "value": "2026" }
+              ]
+            },
+            "description": "Exits / average headcount for the period, expressed as a percentage."
+          }
+        },
+        {
+          "name": "Department Performance Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/department-performance?period=2026-08",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "department-performance"],
+              "query": [{ "key": "period", "value": "2026-08", "description": "optional — defaults to each employee's most recent score" }]
+            }
+          }
+        },
+        {
+          "name": "Export Department Performance Report (Excel/PDF)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/department-performance/export?period=2026-08&format=excel",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "department-performance", "export"],
+              "query": [
+                { "key": "period", "value": "2026-08" },
+                { "key": "format", "value": "excel", "description": "excel | pdf" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit Logs",
+      "item": [
+        {
+          "name": "List Audit Logs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/audit-logs?targetType=User",
+              "host": ["{{base_url}}"],
+              "path": ["audit-logs"],
+              "query": [{ "key": "targetType", "value": "User", "description": "optional filter, e.g. 'User'" }]
+            },
+            "description": "hr_admin only. Records sensitive admin actions such as role/permission changes."
           }
         }
       ]

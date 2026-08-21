@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema(
     employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
     isActive: { type: Boolean, default: true },
     lastLoginAt: { type: Date },
+    notificationPreferences: {
+      inApp: { type: Boolean, default: true },
+      email: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

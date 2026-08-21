@@ -6,6 +6,7 @@ const {
   updateEmployee,
   addSkill,
   addCourse,
+  changeRole,
   deactivateEmployee,
 } = require('../controllers/employeeController');
 const { protect } = require('../middleware/auth');
@@ -20,6 +21,7 @@ router.get('/:id', getEmployee);
 router.put('/:id', allowRoles('hr_admin'), updateEmployee);
 router.post('/:id/skills', allowRoles('manager', 'hr_admin'), addSkill);
 router.post('/:id/courses', allowRoles('manager', 'hr_admin'), addCourse);
+router.patch('/:id/role', allowRoles('hr_admin'), changeRole);
 router.delete('/:id', allowRoles('hr_admin'), deactivateEmployee);
 
 module.exports = router;

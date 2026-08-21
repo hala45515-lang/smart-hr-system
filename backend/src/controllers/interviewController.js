@@ -34,7 +34,7 @@ const getInterview = asyncHandler(async (req, res) => {
 //        next open slot for the interviewers and learns typical duration by type.
 // @route POST /api/interviews
 const createInterview = asyncHandler(async (req, res) => {
-  const { candidate, job, interviewers, type, scheduledAt, durationMinutes } = req.body;
+  const { candidate, job, interviewers, type, scheduledAt, durationMinutes, force } = req.body;
   if (!candidate || !job || !interviewers?.length) {
     throw new ApiError(400, 'candidate, job and interviewers are required');
   }
@@ -42,6 +42,16 @@ const createInterview = asyncHandler(async (req, res) => {
   const duration = durationMinutes || (await schedulingService.learnDurationForType(type || 'phone'));
   const startAt = scheduledAt ? new Date(scheduledAt) : await schedulingService.findNextAvailableSlot(interviewers, duration);
   if (!startAt) throw new ApiError(409, 'No available slot found for the selected interviewers');
+
+  if (scheduledAt && !force) {
+    const conflict = await schedulingService.findConflict(interviewers, startAt, duration);
+    if (conflict) {
+      throw new ApiError(
+        409,
+        `This time conflicts with an existing interview (${conflict.candidate?.name || 'another candidate'} at ${conflict.scheduledAt.toLocaleString()}). Pass force: true to schedule anyway.`
+      );
+    }
+  }
 
   const interview = await Interview.create({
     candidate,

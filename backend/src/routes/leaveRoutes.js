@@ -9,6 +9,7 @@ const {
 } = require('../controllers/leaveController');
 const { protect } = require('../middleware/auth');
 const { allowRoles } = require('../middleware/role');
+const { leaveAttachmentUpload } = require('../middleware/upload');
 
 const router = express.Router();
 router.use(protect);
@@ -19,8 +20,8 @@ router.post('/:employeeId/balances', allowRoles('hr_admin'), setLeaveBalance);
 
 router.get('/requests', listLeaveRequests);
 router.get('/:employeeId/requests', listLeaveRequests);
-router.post('/requests', createLeaveRequest);
-router.post('/:employeeId/requests', allowRoles('manager', 'hr_admin'), createLeaveRequest);
+router.post('/requests', leaveAttachmentUpload.single('attachment'), createLeaveRequest);
+router.post('/:employeeId/requests', allowRoles('manager', 'hr_admin'), leaveAttachmentUpload.single('attachment'), createLeaveRequest);
 
 router.patch('/requests/:requestId/decision', allowRoles('manager', 'hr_admin'), decideLeaveRequest);
 router.patch('/requests/:requestId/cancel', cancelLeaveRequest);

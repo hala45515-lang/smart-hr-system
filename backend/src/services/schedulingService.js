@@ -50,6 +50,24 @@ const findNextAvailableSlot = async (interviewerIds, durationMinutes, from = new
 };
 
 /**
+ * Checks whether a manually-chosen time conflicts with an existing scheduled
+ * interview for any of the given interviewers.
+ */
+const findConflict = async (interviewerIds, startAt, durationMinutes, excludeInterviewId) => {
+  const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000);
+  const filter = {
+    interviewers: { $in: interviewerIds },
+    status: 'scheduled',
+    scheduledAt: { $lt: endAt },
+    $expr: {
+      $gt: [{ $add: ['$scheduledAt', { $multiply: ['$durationMinutes', 60000] }] }, startAt.getTime()],
+    },
+  };
+  if (excludeInterviewId) filter._id = { $ne: excludeInterviewId };
+  return Interview.findOne(filter).populate('candidate', 'name');
+};
+
+/**
  * If an interview is cancelled, auto-suggest the next available replacement slot
  * for the same interviewers/duration.
  */
@@ -58,4 +76,10 @@ const autoRescheduleAfterCancellation = async (interview) => {
   return nextSlot;
 };
 
-module.exports = { learnDurationForType, findNextAvailableSlot, autoRescheduleAfterCancellation, DEFAULT_DURATIONS };
+module.exports = {
+  learnDurationForType,
+  findNextAvailableSlot,
+  findConflict,
+  autoRescheduleAfterCancellation,
+  DEFAULT_DURATIONS,
+};

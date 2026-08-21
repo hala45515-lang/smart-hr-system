@@ -1,6 +1,9 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const Candidate = require('../models/Candidate');
+const Employee = require('../models/Employee');
+const User = require('../models/User');
+const CareerEvent = require('../models/CareerEvent');
 
 const listCandidates = asyncHandler(async (req, res) => {
   const { job, stage } = req.query;
@@ -40,4 +43,50 @@ const updateCandidateStage = asyncHandler(async (req, res) => {
   ok(res, candidate, 'Candidate stage updated');
 });
 
-module.exports = { listCandidates, getCandidate, createCandidate, updateCandidateStage };
+// @desc  Convert an accepted candidate directly into an employee record
+// @route POST /api/candidates/:id/hire
+const hireCandidate = asyncHandler(async (req, res) => {
+  const { employeeCode, department, position, level, hireDate, baseSalary, password } = req.body;
+  if (!employeeCode || !position || !hireDate) {
+    throw new ApiError(400, 'employeeCode, position and hireDate are required');
+  }
+
+  const candidate = await Candidate.findById(req.params.id).populate('job', 'title department');
+  if (!candidate) throw new ApiError(404, 'Candidate not found');
+  if (candidate.hiredEmployee) throw new ApiError(400, 'This candidate has already been hired');
+
+  const user = await User.create({
+    name: candidate.name,
+    email: candidate.email,
+    password: password || `Welcome${Math.random().toString(36).slice(2, 8)}!`,
+    role: 'employee',
+  });
+
+  const employee = await Employee.create({
+    user: user._id,
+    employeeCode,
+    department: department || candidate.job?.department,
+    position,
+    level,
+    hireDate,
+    baseSalary,
+  });
+  user.employee = employee._id;
+  await user.save();
+
+  await CareerEvent.create({
+    employee: employee._id,
+    type: 'hire',
+    title: `Joined as ${position}`,
+    date: hireDate,
+    createdBy: req.user._id,
+  });
+
+  candidate.stage = 'hired';
+  candidate.hiredEmployee = employee._id;
+  await candidate.save();
+
+  created(res, { candidate, employee }, 'Candidate hired and converted to an employee');
+});
+
+module.exports = { listCandidates, getCandidate, createCandidate, updateCandidateStage, hireCandidate };

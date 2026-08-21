@@ -22,6 +22,9 @@ router.use('/referrals', require('./referralRoutes'));
 router.use('/attendance', require('./attendanceRoutes'));
 router.use('/payroll', require('./payrollRoutes'));
 router.use('/notifications', require('./notificationRoutes'));
+router.use('/dashboard', require('./dashboardRoutes'));
+router.use('/reports', require('./reportRoutes'));
+router.use('/audit-logs', require('./auditLogRoutes'));
 
 router.get('/health', (req, res) => res.json({ success: true, message: 'Smart HR API is running' }));
 

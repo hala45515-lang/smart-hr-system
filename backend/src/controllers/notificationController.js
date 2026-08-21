@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok } = require('../utils/apiResponse');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
 
 // @desc  List notifications for the logged-in user
 // @route GET /api/notifications
@@ -31,4 +32,23 @@ const markAllAsRead = asyncHandler(async (req, res) => {
   ok(res, null, 'All notifications marked as read');
 });
 
-module.exports = { listNotifications, markAsRead, markAllAsRead };
+// @desc  Get the logged-in user's notification preferences (in-app / email)
+// @route GET /api/notifications/preferences
+const getPreferences = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('notificationPreferences');
+  ok(res, user.notificationPreferences);
+});
+
+// @desc  Update the logged-in user's notification preferences
+// @route PATCH /api/notifications/preferences
+const updatePreferences = asyncHandler(async (req, res) => {
+  const { inApp, email } = req.body;
+  const updates = {};
+  if (inApp !== undefined) updates['notificationPreferences.inApp'] = inApp;
+  if (email !== undefined) updates['notificationPreferences.email'] = email;
+
+  const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).select('notificationPreferences');
+  ok(res, user.notificationPreferences, 'Notification preferences updated');
+});
+
+module.exports = { listNotifications, markAsRead, markAllAsRead, getPreferences, updatePreferences };

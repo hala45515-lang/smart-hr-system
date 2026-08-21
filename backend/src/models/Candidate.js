@@ -14,6 +14,7 @@ const candidateSchema = new mongoose.Schema(
     },
     source: { type: String, enum: ['careers_page', 'referral', 'agency', 'other'], default: 'careers_page' },
     referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral' },
+    hiredEmployee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
   },
   { timestamps: true }
 );

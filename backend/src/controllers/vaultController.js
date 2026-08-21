@@ -70,6 +70,21 @@ const getSalaryHistory = asyncHandler(async (req, res) => {
   ok(res, { records, yearlyAverages: growth });
 });
 
+// @desc  HR reviews an uploaded document — mark it approved or rejected
+// @route PATCH /api/vault/document/:documentId/review
+const reviewDocument = asyncHandler(async (req, res) => {
+  const { status, note } = req.body;
+  if (!['approved', 'rejected'].includes(status)) throw new ApiError(400, "status must be 'approved' or 'rejected'");
+
+  const document = await Document.findByIdAndUpdate(
+    req.params.documentId,
+    { status, reviewNote: note, reviewedBy: req.user._id, reviewedAt: new Date() },
+    { new: true }
+  );
+  if (!document) throw new ApiError(404, 'Document not found');
+  ok(res, document, `Document ${status}`);
+});
+
 // @desc  Delete a document
 // @route DELETE /api/vault/document/:documentId
 const deleteDocument = asyncHandler(async (req, res) => {
@@ -78,4 +93,4 @@ const deleteDocument = asyncHandler(async (req, res) => {
   ok(res, null, 'Document deleted');
 });
 
-module.exports = { listDocuments, uploadDocument, getSalaryHistory, deleteDocument };
+module.exports = { listDocuments, uploadDocument, getSalaryHistory, reviewDocument, deleteDocument };

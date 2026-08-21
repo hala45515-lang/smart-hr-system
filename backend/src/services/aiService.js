@@ -2,41 +2,35 @@
  * AI service used by: AI HR Companion (chatbot), AI Scribe (interview summaries),
  * Employer Branding Kit (post suggestions), and development tip generation.
  *
- * If ANTHROPIC_API_KEY is set, real calls are made to Claude. Otherwise every
- * function falls back to deterministic, rule-based logic so the API keeps
- * working out of the box without any external dependency.
+ * If GEMINI_API_KEY is set, real calls are made to Google Gemini (free tier).
+ * Otherwise every function falls back to deterministic, rule-based logic so
+ * the API keeps working out of the box without any external dependency.
  */
 
-let anthropicClient = null;
-const isAiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
+const isAiEnabled = () => Boolean(process.env.GEMINI_API_KEY);
 
-const getClient = () => {
+const askAI = async (systemPrompt, userPrompt) => {
   if (!isAiEnabled()) return null;
-  if (anthropicClient) return anthropicClient;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   try {
-    // eslint-disable-next-line global-require
-    const Anthropic = require('@anthropic-ai/sdk');
-    anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    return anthropicClient;
-  } catch (err) {
-    console.warn('[aiService] @anthropic-ai/sdk not installed, falling back to rule-based AI:', err.message);
-    return null;
-  }
-};
-
-const askClaude = async (systemPrompt, userPrompt) => {
-  const client = getClient();
-  if (!client) return null;
-  try {
-    const response = await client.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5',
-      max_tokens: 800,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        generationConfig: { maxOutputTokens: 800 },
+      }),
     });
-    return response.content?.[0]?.text?.trim() || null;
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`${res.status} ${errBody}`);
+    }
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
   } catch (err) {
-    console.error('[aiService] Claude request failed, falling back:', err.message);
+    console.error('[aiService] Gemini request failed, falling back:', err.message);
     return null;
   }
 };
@@ -74,7 +68,7 @@ const answerHRQuestion = async (question, context = {}) => {
   }
 
   // Try the real model for open-ended questions
-  const aiAnswer = await askClaude(
+  const aiAnswer = await askAI(
     'You are the AI HR Companion inside a Smart HR System. Answer employee HR questions briefly and factually using the provided context. If you cannot answer confidently, say you will route the question to HR.',
     `Employee context: ${JSON.stringify(context)}\n\nQuestion: ${question}`
   );
@@ -93,7 +87,7 @@ const answerHRQuestion = async (question, context = {}) => {
  * AI Scribe — summarizes an interview transcript into a structured evaluation.
  */
 const summarizeInterview = async (transcript) => {
-  const aiResult = await askClaude(
+  const aiResult = await askAI(
     'You are an HR interview scribe. Given an interview transcript, produce a concise JSON object with keys: summary (string), strengths (string array), concerns (string array), overallRating (1-5 integer), recommendation (one of strong_yes, yes, neutral, no, strong_no). Respond with JSON only.',
     transcript
   );
@@ -123,7 +117,7 @@ const summarizeInterview = async (transcript) => {
  * Employer Branding Kit — suggests social posts using company stats.
  */
 const suggestBrandingPosts = async (stats) => {
-  const aiResult = await askClaude(
+  const aiResult = await askAI(
     'You are a recruitment marketing assistant. Given company HR statistics, write 3 short, upbeat social media post drafts to attract candidates. Return them as a JSON array of strings only.',
     JSON.stringify(stats)
   );
@@ -146,7 +140,7 @@ const suggestBrandingPosts = async (stats) => {
  * Development tips based on an employee's profile snapshot.
  */
 const generateDevelopmentTips = async (profileSnapshot) => {
-  const aiResult = await askClaude(
+  const aiResult = await askAI(
     'You are a career development coach for an HR system. Given an employee profile summary, suggest 3 short, actionable development tips. Return a JSON array of strings only.',
     JSON.stringify(profileSnapshot)
   );

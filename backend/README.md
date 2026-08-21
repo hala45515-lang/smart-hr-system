@@ -39,7 +39,7 @@ Sample accounts created by `npm run seed` (password: `password123`):
 
 ## AI features
 
-`ANTHROPIC_API_KEY` in `.env` is optional. If set, the AI HR Companion, AI Scribe, Employer Branding post suggestions, and development-tip generation call Claude for open-ended answers. If unset (default), all AI-labeled endpoints still work using deterministic rule-based logic, so the API runs fully standalone.
+`GEMINI_API_KEY` in `.env` is optional (get a free key at https://aistudio.google.com/apikey). If set, the AI HR Companion, AI Scribe, Employer Branding post suggestions, and development-tip generation call Google Gemini for open-ended answers. If unset (default), all AI-labeled endpoints still work using deterministic rule-based logic, so the API runs fully standalone.
 
 ## Auth
 

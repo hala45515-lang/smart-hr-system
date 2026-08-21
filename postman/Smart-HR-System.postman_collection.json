@@ -1,0 +1,933 @@
+{
+  "info": {
+    "name": "Smart HR System API",
+    "description": "Full collection of Smart HR System backend endpoints. Import the accompanying environment file and run 'Login' first to auto-fill the {{token}} variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"employee\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.token) {",
+                  "    pm.environment.set('token', data.token);",
+                  "}",
+                  "if (data && data.user && data.user._id) {",
+                  "    pm.environment.set('employeeId', data.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employees",
+      "item": [
+        {
+          "name": "List Employees",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/employees", "host": ["{{base_url}}"], "path": ["employees"] }
+          }
+        },
+        {
+          "name": "Create Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Smith\",\n  \"email\": \"john.smith@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"employee\",\n  \"employeeCode\": \"EMP-1001\",\n  \"department\": \"{{departmentId}}\",\n  \"position\": \"Software Engineer\",\n  \"level\": \"Mid\",\n  \"manager\": \"{{employeeId}}\",\n  \"hireDate\": \"2026-01-15\",\n  \"baseSalary\": 6000\n}"
+            },
+            "url": { "raw": "{{base_url}}/employees", "host": ["{{base_url}}"], "path": ["employees"] }
+          }
+        },
+        {
+          "name": "Get Employee",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position\": \"Senior Software Engineer\",\n  \"level\": \"Senior\",\n  \"baseSalary\": 7500\n}"
+            },
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Add Skill",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Node.js\",\n  \"level\": \"Advanced\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}/skills", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}", "skills"] }
+          }
+        },
+        {
+          "name": "Add Course",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"AWS Certified Developer\",\n  \"provider\": \"AWS\",\n  \"completedAt\": \"2026-05-01\",\n  \"certificateUrl\": \"https://example.com/certificate.pdf\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}/courses", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}", "courses"] }
+          }
+        },
+        {
+          "name": "Deactivate Employee",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get My Profile Map",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/profile", "host": ["{{base_url}}"], "path": ["profile"] }
+          }
+        },
+        {
+          "name": "Get My Career Timeline",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/profile/timeline", "host": ["{{base_url}}"], "path": ["profile", "timeline"] }
+          }
+        },
+        {
+          "name": "Get Employee Profile Map",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/profile/{{employeeId}}", "host": ["{{base_url}}"], "path": ["profile", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Get Employee Career Timeline",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/profile/{{employeeId}}/timeline", "host": ["{{base_url}}"], "path": ["profile", "{{employeeId}}", "timeline"] }
+          }
+        },
+        {
+          "name": "Add Career Event",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"promotion\",\n  \"title\": \"Promoted to Senior Engineer\",\n  \"description\": \"Promotion after strong performance review\",\n  \"department\": \"{{departmentId}}\",\n  \"previousValue\": \"Mid\",\n  \"newValue\": \"Senior\",\n  \"date\": \"2026-06-01\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/profile/{{employeeId}}/timeline", "host": ["{{base_url}}"], "path": ["profile", "{{employeeId}}", "timeline"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evaluations",
+      "item": [
+        {
+          "name": "List Evaluations",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/evaluations/{{employeeId}}", "host": ["{{base_url}}"], "path": ["evaluations", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Create Evaluation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period\": \"2026-Q2\",\n  \"managerRating\": 4,\n  \"strengths\": \"Strong ownership and communication\",\n  \"areasToImprove\": \"Delegation\",\n  \"comments\": \"Great quarter overall\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/evaluations/{{employeeId}}", "host": ["{{base_url}}"], "path": ["evaluations", "{{employeeId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Performance",
+      "item": [
+        {
+          "name": "Get My Performance Score",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/performance", "host": ["{{base_url}}"], "path": ["performance"] }
+          }
+        },
+        {
+          "name": "Get My Performance History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/performance/history", "host": ["{{base_url}}"], "path": ["performance", "history"] }
+          }
+        },
+        {
+          "name": "Get Employee Performance Score",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/performance/{{employeeId}}", "host": ["{{base_url}}"], "path": ["performance", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Get Employee Performance History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/performance/{{employeeId}}/history", "host": ["{{base_url}}"], "path": ["performance", "{{employeeId}}", "history"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chatbot",
+      "item": [
+        {
+          "name": "Ask",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"How many vacation days do I have left?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/chatbot/ask", "host": ["{{base_url}}"], "path": ["chatbot", "ask"] }
+          }
+        },
+        {
+          "name": "History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/chatbot/history", "host": ["{{base_url}}"], "path": ["chatbot", "history"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vault",
+      "item": [
+        {
+          "name": "List My Documents",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/vault", "host": ["{{base_url}}"], "path": ["vault"] }
+          }
+        },
+        {
+          "name": "Get My Salary History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/vault/salary-history", "host": ["{{base_url}}"], "path": ["vault", "salary-history"] }
+          }
+        },
+        {
+          "name": "List Employee Documents",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/vault/{{employeeId}}", "host": ["{{base_url}}"], "path": ["vault", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Get Employee Salary History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/vault/{{employeeId}}/salary-history", "host": ["{{base_url}}"], "path": ["vault", "{{employeeId}}", "salary-history"] }
+          }
+        },
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "title", "type": "text", "value": "Employment Contract" },
+                { "key": "category", "type": "text", "value": "contract" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/vault/{{employeeId}}", "host": ["{{base_url}}"], "path": ["vault", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Delete Document",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/vault/document/{{documentId}}", "host": ["{{base_url}}"], "path": ["vault", "document", "{{documentId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Leave",
+      "item": [
+        {
+          "name": "Get My Balances",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/leave/balances", "host": ["{{base_url}}"], "path": ["leave", "balances"] }
+          }
+        },
+        {
+          "name": "Get Employee Balances",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/leave/{{employeeId}}/balances", "host": ["{{base_url}}"], "path": ["leave", "{{employeeId}}", "balances"] }
+          }
+        },
+        {
+          "name": "Set Leave Balance",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leaveType\": \"{{leaveTypeId}}\",\n  \"year\": 2026,\n  \"totalDays\": 21\n}"
+            },
+            "url": { "raw": "{{base_url}}/leave/{{employeeId}}/balances", "host": ["{{base_url}}"], "path": ["leave", "{{employeeId}}", "balances"] }
+          }
+        },
+        {
+          "name": "List My Leave Requests",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/leave/requests", "host": ["{{base_url}}"], "path": ["leave", "requests"] }
+          }
+        },
+        {
+          "name": "List Employee Leave Requests",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/leave/{{employeeId}}/requests", "host": ["{{base_url}}"], "path": ["leave", "{{employeeId}}", "requests"] }
+          }
+        },
+        {
+          "name": "Create Leave Request (Me)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leaveType\": \"{{leaveTypeId}}\",\n  \"startDate\": \"2026-09-01\",\n  \"endDate\": \"2026-09-05\",\n  \"reason\": \"Family trip\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leave/requests", "host": ["{{base_url}}"], "path": ["leave", "requests"] }
+          }
+        },
+        {
+          "name": "Create Leave Request For Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leaveType\": \"{{leaveTypeId}}\",\n  \"startDate\": \"2026-09-01\",\n  \"endDate\": \"2026-09-05\",\n  \"reason\": \"Family trip\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leave/{{employeeId}}/requests", "host": ["{{base_url}}"], "path": ["leave", "{{employeeId}}", "requests"] }
+          }
+        },
+        {
+          "name": "Decide Leave Request",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\",\n  \"note\": \"Enjoy your time off\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leave/requests/{{requestId}}/decision", "host": ["{{base_url}}"], "path": ["leave", "requests", "{{requestId}}", "decision"] }
+          }
+        },
+        {
+          "name": "Cancel Leave Request",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/leave/requests/{{requestId}}/cancel", "host": ["{{base_url}}"], "path": ["leave", "requests", "{{requestId}}", "cancel"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Leave Types",
+      "item": [
+        {
+          "name": "List Leave Types",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/leave-types", "host": ["{{base_url}}"], "path": ["leave-types"] }
+          }
+        },
+        {
+          "name": "Create Leave Type",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Annual Leave\",\n  \"defaultDaysPerYear\": 21,\n  \"description\": \"Standard yearly paid leave\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leave-types", "host": ["{{base_url}}"], "path": ["leave-types"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "List My Tasks",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/tasks", "host": ["{{base_url}}"], "path": ["tasks"] }
+          }
+        },
+        {
+          "name": "List Employee Tasks",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/tasks/{{employeeId}}", "host": ["{{base_url}}"], "path": ["tasks", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Submit Q3 report\",\n  \"description\": \"Prepare and submit the quarterly report\",\n  \"dueDate\": \"2026-09-30\",\n  \"priority\": \"high\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/tasks/{{employeeId}}", "host": ["{{base_url}}"], "path": ["tasks", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/tasks/item/{{taskId}}", "host": ["{{base_url}}"], "path": ["tasks", "item", "{{taskId}}"] }
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/tasks/item/{{taskId}}", "host": ["{{base_url}}"], "path": ["tasks", "item", "{{taskId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Emergency",
+      "item": [
+        {
+          "name": "Get Public Emergency Info",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/emergency/public/{{qrToken}}", "host": ["{{base_url}}"], "path": ["emergency", "public", "{{qrToken}}"] }
+          }
+        },
+        {
+          "name": "Get My Emergency Info",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/emergency", "host": ["{{base_url}}"], "path": ["emergency"] }
+          }
+        },
+        {
+          "name": "Get Employee Emergency Info",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Add Emergency Contact",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sara Ahmad\",\n  \"relationship\": \"Spouse\",\n  \"phone\": \"+962790000000\",\n  \"isPrimary\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/contacts", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "contacts"] }
+          }
+        },
+        {
+          "name": "Upsert Medical Info",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bloodType\": \"O+\",\n  \"allergies\": [\"Penicillin\"],\n  \"chronicConditions\": [\"Asthma\"]\n}"
+            },
+            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/medical", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "medical"] }
+          }
+        },
+        {
+          "name": "Get Emergency QR",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/qr", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "qr"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Departments",
+      "item": [
+        {
+          "name": "List Departments",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/departments", "host": ["{{base_url}}"], "path": ["departments"] }
+          }
+        },
+        {
+          "name": "Create Department",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Engineering\",\n  \"description\": \"Product engineering department\",\n  \"manager\": \"{{employeeId}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/departments", "host": ["{{base_url}}"], "path": ["departments"] }
+          }
+        },
+        {
+          "name": "Update Department",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Engineering & IT\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/departments/{{departmentId}}", "host": ["{{base_url}}"], "path": ["departments", "{{departmentId}}"] }
+          }
+        },
+        {
+          "name": "Delete Department",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/departments/{{departmentId}}", "host": ["{{base_url}}"], "path": ["departments", "{{departmentId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "List Jobs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/jobs", "host": ["{{base_url}}"], "path": ["jobs"] }
+          }
+        },
+        {
+          "name": "Get Job",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/jobs/{{jobId}}", "host": ["{{base_url}}"], "path": ["jobs", "{{jobId}}"] }
+          }
+        },
+        {
+          "name": "Create Job",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Backend Developer\",\n  \"department\": \"{{departmentId}}\",\n  \"description\": \"Build and maintain backend services\",\n  \"requirements\": [\"Node.js\", \"MongoDB\", \"3+ years experience\"],\n  \"openings\": 2\n}"
+            },
+            "url": { "raw": "{{base_url}}/jobs", "host": ["{{base_url}}"], "path": ["jobs"] }
+          }
+        },
+        {
+          "name": "Update Job",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"openings\": 1,\n  \"status\": \"open\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/jobs/{{jobId}}", "host": ["{{base_url}}"], "path": ["jobs", "{{jobId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Candidates",
+      "item": [
+        {
+          "name": "List Candidates",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/candidates", "host": ["{{base_url}}"], "path": ["candidates"] }
+          }
+        },
+        {
+          "name": "Get Candidate",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/candidates/{{candidateId}}", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}"] }
+          }
+        },
+        {
+          "name": "Create Candidate",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "resume", "type": "file", "src": "" },
+                { "key": "name", "type": "text", "value": "Ahmad Khalil" },
+                { "key": "email", "type": "text", "value": "ahmad.khalil@example.com" },
+                { "key": "phone", "type": "text", "value": "+962791234567" },
+                { "key": "job", "type": "text", "value": "{{jobId}}" },
+                { "key": "source", "type": "text", "value": "LinkedIn" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/candidates", "host": ["{{base_url}}"], "path": ["candidates"] }
+          }
+        },
+        {
+          "name": "Update Candidate Stage",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stage\": \"interview\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/candidates/{{candidateId}}/stage", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}", "stage"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interviews",
+      "item": [
+        {
+          "name": "List Interviews",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/interviews", "host": ["{{base_url}}"], "path": ["interviews"] }
+          }
+        },
+        {
+          "name": "Get Interview",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}"] }
+          }
+        },
+        {
+          "name": "Create Interview",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"candidate\": \"{{candidateId}}\",\n  \"job\": \"{{jobId}}\",\n  \"interviewers\": [\"{{employeeId}}\"],\n  \"type\": \"technical\",\n  \"scheduledAt\": \"2026-09-10T10:00:00.000Z\",\n  \"durationMinutes\": 45\n}"
+            },
+            "url": { "raw": "{{base_url}}/interviews", "host": ["{{base_url}}"], "path": ["interviews"] }
+          }
+        },
+        {
+          "name": "Cancel Interview",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/cancel", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "cancel"] }
+          }
+        },
+        {
+          "name": "Run AI Scribe",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript\": \"Full interview transcript text goes here...\",\n  \"consentGiven\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/scribe", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "scribe"] }
+          }
+        },
+        {
+          "name": "Update Evaluation",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"aiSummary\": \"Strong technical skills, good communication\",\n  \"aiEvaluation\": \"Recommend to hire\",\n  \"status\": \"completed\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/evaluation", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "evaluation"] }
+          }
+        },
+        {
+          "name": "Add Note",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Candidate answered system design question well\",\n  \"live\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/notes", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "notes"] }
+          }
+        },
+        {
+          "name": "Attach Recording",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "recording", "type": "file", "src": "" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/recording", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "recording"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Branding",
+      "item": [
+        {
+          "name": "Get Branding Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/branding/stats", "host": ["{{base_url}}"], "path": ["branding", "stats"] }
+          }
+        },
+        {
+          "name": "Get Suggested Posts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/branding/posts", "host": ["{{base_url}}"], "path": ["branding", "posts"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Referrals",
+      "item": [
+        {
+          "name": "List Referrals",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/referrals", "host": ["{{base_url}}"], "path": ["referrals"] }
+          }
+        },
+        {
+          "name": "Create Referral",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"external_candidate\",\n  \"employee\": \"{{employeeId}}\",\n  \"candidateName\": \"Layla Yousef\",\n  \"candidateEmail\": \"layla.yousef@example.com\",\n  \"job\": \"{{jobId}}\",\n  \"toDepartment\": \"{{departmentId}}\",\n  \"reason\": \"Great fit for the backend role\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/referrals", "host": ["{{base_url}}"], "path": ["referrals"] }
+          }
+        },
+        {
+          "name": "Get Nominee Profile",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/referrals/{{referralId}}/candidate-profile", "host": ["{{base_url}}"], "path": ["referrals", "{{referralId}}", "candidate-profile"] }
+          }
+        },
+        {
+          "name": "Decide Referral",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/referrals/{{referralId}}/decision", "host": ["{{base_url}}"], "path": ["referrals", "{{referralId}}", "decision"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "item": [
+        {
+          "name": "Check In",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/attendance/check-in", "host": ["{{base_url}}"], "path": ["attendance", "check-in"] }
+          }
+        },
+        {
+          "name": "Check Out",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/attendance/check-out", "host": ["{{base_url}}"], "path": ["attendance", "check-out"] }
+          }
+        },
+        {
+          "name": "Get My Attendance",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/attendance", "host": ["{{base_url}}"], "path": ["attendance"] }
+          }
+        },
+        {
+          "name": "Get Employee Attendance",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/attendance/{{employeeId}}", "host": ["{{base_url}}"], "path": ["attendance", "{{employeeId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payroll",
+      "item": [
+        {
+          "name": "List My Payroll",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/payroll", "host": ["{{base_url}}"], "path": ["payroll"] }
+          }
+        },
+        {
+          "name": "List Employee Payroll",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/payroll/{{employeeId}}", "host": ["{{base_url}}"], "path": ["payroll", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Create Payroll",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": 8,\n  \"year\": 2026,\n  \"baseSalary\": 6000,\n  \"bonuses\": 200,\n  \"deductions\": 50,\n  \"payslipUrl\": \"https://example.com/payslip.pdf\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/payroll/{{employeeId}}", "host": ["{{base_url}}"], "path": ["payroll", "{{employeeId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/notifications", "host": ["{{base_url}}"], "path": ["notifications"] }
+          }
+        },
+        {
+          "name": "Mark All As Read",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/notifications/read-all", "host": ["{{base_url}}"], "path": ["notifications", "read-all"] }
+          }
+        },
+        {
+          "name": "Mark As Read",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/notifications/{{notificationId}}/read", "host": ["{{base_url}}"], "path": ["notifications", "{{notificationId}}", "read"] }
+          }
+        }
+      ]
+    }
+  ]
+}

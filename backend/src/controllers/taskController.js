@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const Task = require('../models/Task');
+const Employee = require('../models/Employee');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
 
 // @desc  List tasks for an employee (defaults to self)
@@ -34,6 +35,15 @@ const createTask = asyncHandler(async (req, res) => {
 // @desc  Update task status/details
 // @route PATCH /api/tasks/item/:taskId
 const updateTask = asyncHandler(async (req, res) => {
+  if (req.user.role === 'employee') {
+    const task = await Task.findById(req.params.taskId).select('employee');
+    if (!task) throw new ApiError(404, 'Task not found');
+    const own = await Employee.findOne({ user: req.user._id }).select('_id');
+    if (!own || String(own._id) !== String(task.employee)) {
+      throw new ApiError(403, 'You can only update your own tasks');
+    }
+  }
+
   const { status, title, description, dueDate, priority } = req.body;
   const updates = {};
   if (status) {

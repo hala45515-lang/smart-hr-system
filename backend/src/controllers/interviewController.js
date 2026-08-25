@@ -170,7 +170,10 @@ const attachRecording = asyncHandler(async (req, res) => {
   if (!interview) throw new ApiError(404, 'Interview not found');
 
   // The candidate's consent must cover the recording, not just the AI Scribe transcript step.
-  if (!interview.consentGiven && !req.body.consentGiven) {
+  // This route accepts multipart/form-data (multer), where every field arrives as a
+  // string — so a literal "false" must NOT be treated as truthy.
+  const consentGiven = req.body.consentGiven === true || req.body.consentGiven === 'true';
+  if (!interview.consentGiven && !consentGiven) {
     throw new ApiError(400, "consentGiven must be true — the candidate's explicit consent is required to store the interview recording");
   }
 

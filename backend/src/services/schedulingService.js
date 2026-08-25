@@ -24,17 +24,22 @@ const findNextAvailableSlot = async (interviewerIds, durationMinutes, from = new
   for (let attempts = 0; attempts < 200; attempts += 1) {
     const hour = candidate.getHours();
     const day = candidate.getDay();
-    const isWorkingHours = hour >= 9 && hour + Math.ceil(durationMinutes / 60) <= 17;
+    const slotEnd = new Date(candidate.getTime() + durationMinutes * 60 * 1000);
+    const dayCutoff = new Date(candidate);
+    dayCutoff.setHours(17, 0, 0, 0);
+    const isWorkingHours = hour >= 9 && slotEnd <= dayCutoff;
     const isWeekday = day >= 0 && day <= 4; // Sun-Thu default; adjust per org calendar
 
     if (isWorkingHours && isWeekday) {
-      const slotEnd = new Date(candidate.getTime() + durationMinutes * 60 * 1000);
       const overlapping = await Interview.findOne({
         interviewers: { $in: interviewerIds },
         status: 'scheduled',
         scheduledAt: { $lt: slotEnd },
         $expr: {
-          $gt: [{ $add: ['$scheduledAt', { $multiply: ['$durationMinutes', 60000] }] }, candidate.getTime()],
+          // Both sides must stay Date-typed — comparing a Date to a raw number
+          // in $expr always resolves true under BSON type ordering (Date > Number),
+          // which would flag every earlier interview as an overlap regardless of time.
+          $gt: [{ $add: ['$scheduledAt', { $multiply: ['$durationMinutes', 60000] }] }, candidate],
         },
       });
       if (!overlapping) return candidate;
@@ -60,7 +65,8 @@ const findConflict = async (interviewerIds, startAt, durationMinutes, excludeInt
     status: 'scheduled',
     scheduledAt: { $lt: endAt },
     $expr: {
-      $gt: [{ $add: ['$scheduledAt', { $multiply: ['$durationMinutes', 60000] }] }, startAt.getTime()],
+      // Same Date-vs-Date requirement as findNextAvailableSlot above.
+      $gt: [{ $add: ['$scheduledAt', { $multiply: ['$durationMinutes', 60000] }] }, startAt],
     },
   };
   if (excludeInterviewId) filter._id = { $ne: excludeInterviewId };

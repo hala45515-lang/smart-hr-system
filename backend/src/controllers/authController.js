@@ -4,16 +4,18 @@ const User = require('../models/User');
 const Employee = require('../models/Employee');
 const generateToken = require('../utils/generateToken');
 
-// @desc  Register a new user account (HR admin typically provisions employees)
+// @desc  Public self-registration. Always creates a plain 'employee' account —
+//        HR/manager roles are only ever granted via POST /api/employees or
+//        PATCH /api/employees/:id/role (both hr_admin-only and audit-logged).
 // @route POST /api/auth/register
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
   if (!name || !email || !password) throw new ApiError(400, 'name, email and password are required');
 
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) throw new ApiError(409, 'A user with this email already exists');
 
-  const user = await User.create({ name, email, password, role: role || 'employee' });
+  const user = await User.create({ name, email, password, role: 'employee' });
   const token = generateToken(user._id, user.role);
 
   created(res, { user: { id: user._id, name: user.name, email: user.email, role: user.role }, token }, 'User registered');

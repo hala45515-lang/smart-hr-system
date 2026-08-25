@@ -8,6 +8,29 @@ const { findLeaveConflicts, createNotification } = require('../services/notifica
 
 const daysBetween = (start, end) => Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
+/**
+ * Scopes who may act on someone else's leave request: hr_admin can act on
+ * anyone's; a manager only on their own department's team; a plain employee
+ * only on their own request.
+ */
+const assertCanActOnLeaveRequest = async (req, leaveRequest) => {
+  if (req.user.role === 'hr_admin') return;
+
+  if (req.user.role === 'manager') {
+    const managerEmployee = await Employee.findOne({ user: req.user._id }).select('department');
+    const requesterDepartment = leaveRequest.employee?.department;
+    if (managerEmployee?.department && requesterDepartment && String(managerEmployee.department) === String(requesterDepartment)) {
+      return;
+    }
+    throw new ApiError(403, 'You can only manage leave requests for your own team');
+  }
+
+  const own = await Employee.findOne({ user: req.user._id }).select('_id');
+  if (!own || String(own._id) !== String(leaveRequest.employee?._id || leaveRequest.employee)) {
+    throw new ApiError(403, 'You can only manage your own leave requests');
+  }
+};
+
 // @desc  Get leave balances for the current year (how many days left, no need to ask)
 // @route GET /api/leave/:employeeId?/balances
 const getBalances = asyncHandler(async (req, res) => {
@@ -97,6 +120,7 @@ const decideLeaveRequest = asyncHandler(async (req, res) => {
   const leaveRequest = await LeaveRequest.findById(req.params.requestId).populate({ path: 'employee', populate: 'user' });
   if (!leaveRequest) throw new ApiError(404, 'Leave request not found');
   if (leaveRequest.status !== 'pending') throw new ApiError(400, 'This request has already been decided');
+  await assertCanActOnLeaveRequest(req, leaveRequest);
 
   // Surface team conflicts to the reviewer at decision time, not just to the requester at submission time.
   const conflicts = await findLeaveConflicts(leaveRequest.employee._id, leaveRequest.startDate, leaveRequest.endDate);
@@ -141,6 +165,7 @@ const cancelLeaveRequest = asyncHandler(async (req, res) => {
   const leaveRequest = await LeaveRequest.findById(req.params.requestId);
   if (!leaveRequest) throw new ApiError(404, 'Leave request not found');
   if (leaveRequest.status !== 'pending') throw new ApiError(400, 'Only pending requests can be cancelled');
+  await assertCanActOnLeaveRequest(req, leaveRequest);
   leaveRequest.status = 'cancelled';
   await leaveRequest.save();
   ok(res, leaveRequest, 'Leave request cancelled');

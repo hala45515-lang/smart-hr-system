@@ -4,6 +4,7 @@ const Employee = require('../models/Employee');
 const Attendance = require('../models/Attendance');
 const CareerEvent = require('../models/CareerEvent');
 const PerformanceScore = require('../models/PerformanceScore');
+const LeaveRequest = require('../models/LeaveRequest');
 const { sendExcel, sendPdfTable } = require('../utils/exportUtils');
 
 const monthRange = (month, year) => {
@@ -162,10 +163,83 @@ const exportDepartmentPerformanceReport = asyncHandler(async (req, res) => {
   await sendExcel(res, filename, perfColumns, rows);
 });
 
+/**
+ * Builds average attendance days and average leave days taken per department
+ * for a given month — a department-level roll-up (buildAttendanceReport above
+ * is per-employee only).
+ */
+const buildDepartmentAttendanceLeaveReport = async ({ month, year }) => {
+  const { start, end, month: m, year: y } = monthRange(month, year);
+
+  const employees = await Employee.find({ status: 'active' }).populate('department', 'name');
+  const employeeIds = employees.map((e) => e._id);
+  const deptByEmployee = new Map(employees.map((e) => [String(e._id), e.department?.name || 'Unassigned']));
+
+  const [attendanceRecords, leaveRequests] = await Promise.all([
+    Attendance.find({ employee: { $in: employeeIds }, date: { $gte: start, $lte: end }, status: { $in: ['present', 'late'] } }).select('employee'),
+    LeaveRequest.find({ employee: { $in: employeeIds }, status: 'approved', startDate: { $lte: end }, endDate: { $gte: start } }).select('employee days'),
+  ]);
+
+  const byDepartment = {};
+  const ensureDept = (name) => {
+    byDepartment[name] = byDepartment[name] || { employeeIds: new Set(), attendanceDays: 0, leaveDays: 0 };
+    return byDepartment[name];
+  };
+
+  employees.forEach((e) => ensureDept(deptByEmployee.get(String(e._id))).employeeIds.add(String(e._id)));
+  attendanceRecords.forEach((r) => {
+    ensureDept(deptByEmployee.get(String(r.employee))).attendanceDays += 1;
+  });
+  leaveRequests.forEach((r) => {
+    ensureDept(deptByEmployee.get(String(r.employee))).leaveDays += r.days;
+  });
+
+  return Object.entries(byDepartment).map(([department, stats]) => {
+    const employeeCount = stats.employeeIds.size || 1;
+    return {
+      department,
+      employeeCount: stats.employeeIds.size,
+      averageAttendanceDays: Math.round((stats.attendanceDays / employeeCount) * 10) / 10,
+      averageLeaveDays: Math.round((stats.leaveDays / employeeCount) * 10) / 10,
+    };
+  });
+};
+
+// @desc  Average attendance days and average leave days taken per department for a given month
+// @route GET /api/reports/department-attendance-leave
+const getDepartmentAttendanceLeaveReport = asyncHandler(async (req, res) => {
+  const { month, year } = req.query;
+  const rows = await buildDepartmentAttendanceLeaveReport({ month, year });
+  ok(res, rows);
+});
+
+const deptAttendanceLeaveColumns = [
+  { header: 'Department', key: 'department', width: 25 },
+  { header: 'Employees', key: 'employeeCount', width: 12 },
+  { header: 'Avg. Attendance Days', key: 'averageAttendanceDays', width: 20 },
+  { header: 'Avg. Leave Days', key: 'averageLeaveDays', width: 18 },
+];
+
+// @desc  Export the department attendance/leave report as Excel or PDF
+// @route GET /api/reports/department-attendance-leave/export?format=excel|pdf
+const exportDepartmentAttendanceLeaveReport = asyncHandler(async (req, res) => {
+  const { month, year, format = 'excel' } = req.query;
+  const rows = await buildDepartmentAttendanceLeaveReport({ month, year });
+  const { month: m, year: y } = monthRange(month, year);
+  const filename = `department-attendance-leave-${y}-${m}`;
+
+  if (format === 'pdf') {
+    return sendPdfTable(res, filename, `Department Attendance & Leave — ${m}/${y}`, deptAttendanceLeaveColumns, rows);
+  }
+  await sendExcel(res, filename, deptAttendanceLeaveColumns, rows);
+});
+
 module.exports = {
   getAttendanceReport,
   exportAttendanceReport,
   getTurnoverReport,
   getDepartmentPerformanceReport,
   exportDepartmentPerformanceReport,
+  getDepartmentAttendanceLeaveReport,
+  exportDepartmentAttendanceLeaveReport,
 };

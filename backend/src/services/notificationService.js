@@ -6,15 +6,33 @@ const Document = require('../models/Document');
 const Employee = require('../models/Employee');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
+const { EmergencyContact, EmployeeMedicalInfo } = require('../models/EmergencyContact');
+const { sendEmail } = require('./emailService');
 
 /**
- * Creates an in-app notification, unless the recipient has opted out via
- * their notificationPreferences.inApp setting.
+ * Creates an in-app notification (unless the recipient opted out via
+ * notificationPreferences.inApp), and sends the same update by email if the
+ * recipient opted in via notificationPreferences.email.
  */
 const createNotification = async ({ userId, type, title, message, meta }) => {
-  const user = await User.findById(userId).select('notificationPreferences');
-  if (user && user.notificationPreferences?.inApp === false) return null;
-  return Notification.create({ user: userId, type, title, message, meta });
+  const user = await User.findById(userId).select('notificationPreferences email name');
+  if (!user) return null;
+  const prefs = user.notificationPreferences || {};
+
+  let notification = null;
+  if (prefs.inApp !== false) {
+    notification = await Notification.create({ user: userId, type, title, message, meta });
+  }
+
+  if (prefs.email === true && user.email) {
+    await sendEmail({
+      to: user.email,
+      subject: title,
+      html: `<p>Hi ${user.name || 'there'},</p><p>${message}</p>`,
+    });
+  }
+
+  return notification;
 };
 
 /**
@@ -174,6 +192,35 @@ const checkRepeatedLateness = async (threshold = 3) => {
   }
 };
 
+/**
+ * Reminds employees whose emergency contact/medical info has never been set,
+ * or hasn't been touched in `daysThreshold` days, to review and update it.
+ */
+const checkStaleEmergencyInfo = async (daysThreshold = 180) => {
+  const cutoff = new Date(Date.now() - daysThreshold * 24 * 60 * 60 * 1000);
+  const employees = await Employee.find({ status: 'active' }).populate('user', '_id');
+
+  for (const employee of employees) {
+    if (!employee.user) continue;
+
+    const [medicalInfo, latestContact] = await Promise.all([
+      EmployeeMedicalInfo.findOne({ employee: employee._id }).select('updatedAt'),
+      EmergencyContact.findOne({ employee: employee._id }).sort({ updatedAt: -1 }).select('updatedAt'),
+    ]);
+
+    const lastUpdated = [medicalInfo?.updatedAt, latestContact?.updatedAt].filter(Boolean).sort((a, b) => b - a)[0];
+    if (lastUpdated && lastUpdated >= cutoff) continue;
+
+    await createNotification({
+      userId: employee.user._id,
+      type: 'general',
+      title: 'Please update your emergency info',
+      message: 'Your emergency contact and medical information is missing or outdated. Please review and confirm it is current.',
+      meta: { employeeId: employee._id },
+    });
+  }
+};
+
 module.exports = {
   createNotification,
   findLeaveConflicts,
@@ -182,4 +229,5 @@ module.exports = {
   checkExpiringDocuments,
   checkForgottenCheckouts,
   checkRepeatedLateness,
+  checkStaleEmergencyInfo,
 };

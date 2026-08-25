@@ -9,6 +9,8 @@ const payrollSchema = new mongoose.Schema(
     bonuses: { type: Number, default: 0 },
     deductions: { type: Number, default: 0 },
     netSalary: { type: Number, required: true },
+    status: { type: String, enum: ['draft', 'approved'], default: 'draft' },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     paidAt: { type: Date },
     payslipUrl: { type: String },
     absentDays: { type: Number, default: 0 },

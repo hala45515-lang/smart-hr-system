@@ -18,6 +18,7 @@ const interviewSchema = new mongoose.Schema(
     scheduledAt: { type: Date, required: true },
     durationMinutes: { type: Number, required: true, default: 45 },
     status: { type: String, enum: ['scheduled', 'completed', 'cancelled', 'no_show'], default: 'scheduled' },
+    candidateNotifiedAt: { type: Date },
 
     // AI Scribe
     consentGiven: { type: Boolean, default: false },

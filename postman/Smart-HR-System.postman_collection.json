@@ -106,7 +106,16 @@
           "name": "Get Employee",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/employees/{{employeeId}}", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}"] }
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}"] },
+            "description": "A plain 'employee' role can only fetch their own record here — cross-employee lookups return 403 unless the caller is manager/hr_admin."
+          }
+        },
+        {
+          "name": "Get Employee Full Record",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/employees/{{employeeId}}/full-record", "host": ["{{base_url}}"], "path": ["employees", "{{employeeId}}", "full-record"] },
+            "description": "Composes attendance, leave requests, payroll and evaluations for this employee into a single response. Same ownership rule as 'Get Employee' — a plain employee can only view their own."
           }
         },
         {
@@ -324,7 +333,23 @@
           }
         },
         {
-          "name": "Upload Document",
+          "name": "Upload My Document",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "title", "type": "text", "value": "National ID" },
+                { "key": "type", "type": "text", "value": "id" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/vault", "host": ["{{base_url}}"], "path": ["vault"] },
+            "description": "Any employee can upload their own document — no HR role required. 'type' must be one of the Document model's enum values (e.g. contract, certificate, id, other)."
+          }
+        },
+        {
+          "name": "Upload Document For Employee",
           "request": {
             "method": "POST",
             "body": {
@@ -332,10 +357,11 @@
               "formdata": [
                 { "key": "file", "type": "file", "src": "" },
                 { "key": "title", "type": "text", "value": "Employment Contract" },
-                { "key": "category", "type": "text", "value": "contract" }
+                { "key": "type", "type": "text", "value": "contract" }
               ]
             },
-            "url": { "raw": "{{base_url}}/vault/{{employeeId}}", "host": ["{{base_url}}"], "path": ["vault", "{{employeeId}}"] }
+            "url": { "raw": "{{base_url}}/vault/{{employeeId}}", "host": ["{{base_url}}"], "path": ["vault", "{{employeeId}}"] },
+            "description": "HR/manager uploading a document on behalf of a specific employee."
           }
         },
         {
@@ -396,6 +422,14 @@
           }
         },
         {
+          "name": "List Pending Leave Requests (HR/Manager)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/leave/requests/pending", "host": ["{{base_url}}"], "path": ["leave", "requests", "pending"] },
+            "description": "manager/hr_admin only. All pending requests across every employee in one list — a manager only sees their own department's team, hr_admin sees everyone."
+          }
+        },
+        {
           "name": "List Employee Leave Requests",
           "request": {
             "method": "GET",
@@ -447,7 +481,8 @@
               "mode": "raw",
               "raw": "{\n  \"decision\": \"approved\",\n  \"note\": \"Enjoy your time off\"\n}"
             },
-            "url": { "raw": "{{base_url}}/leave/requests/{{requestId}}/decision", "host": ["{{base_url}}"], "path": ["leave", "requests", "{{requestId}}", "decision"] }
+            "url": { "raw": "{{base_url}}/leave/requests/{{requestId}}/decision", "host": ["{{base_url}}"], "path": ["leave", "requests", "{{requestId}}", "decision"] },
+            "description": "The response includes a 'teamConflicts' array showing any overlapping approved leave on the same team, surfaced to the reviewer at decision time."
           }
         },
         {
@@ -555,7 +590,8 @@
           "name": "Get Employee Emergency Info",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}"] }
+            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}"] },
+            "description": "Accessing another employee's data (a non-self employeeId) is hr_admin-only — managers get 403, matching the story's 'HR only' requirement for emergency/medical data."
           }
         },
         {
@@ -567,7 +603,8 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Sara Ahmad\",\n  \"relationship\": \"Spouse\",\n  \"phone\": \"+962790000000\",\n  \"isPrimary\": true\n}"
             },
-            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/contacts", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "contacts"] }
+            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/contacts", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "contacts"] },
+            "description": "hr_admin-only for a non-self employeeId."
           }
         },
         {
@@ -579,7 +616,8 @@
               "mode": "raw",
               "raw": "{\n  \"bloodType\": \"O+\",\n  \"allergies\": [\"Penicillin\"],\n  \"chronicConditions\": [\"Asthma\"]\n}"
             },
-            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/medical", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "medical"] }
+            "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/medical", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "medical"] },
+            "description": "hr_admin-only for a non-self employeeId."
           }
         },
         {
@@ -641,14 +679,16 @@
           "name": "List Jobs",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/jobs", "host": ["{{base_url}}"], "path": ["jobs"] }
+            "url": { "raw": "{{base_url}}/jobs", "host": ["{{base_url}}"], "path": ["jobs"] },
+            "description": "Each job includes an 'applicantCount' field — the number of candidates linked to it."
           }
         },
         {
           "name": "Get Job",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/jobs/{{jobId}}", "host": ["{{base_url}}"], "path": ["jobs", "{{jobId}}"] }
+            "url": { "raw": "{{base_url}}/jobs/{{jobId}}", "host": ["{{base_url}}"], "path": ["jobs", "{{jobId}}"] },
+            "description": "Includes an 'applicantCount' field — the number of candidates linked to this job."
           }
         },
         {
@@ -725,6 +765,19 @@
           }
         },
         {
+          "name": "Add Candidate Note",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Strong communicator, good culture fit.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/candidates/{{candidateId}}/notes", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}", "notes"] },
+            "description": "Internal note visible only to HR/managers, appended to the candidate's file."
+          }
+        },
+        {
           "name": "Hire Candidate (Convert to Employee)",
           "request": {
             "method": "POST",
@@ -766,7 +819,7 @@
               "raw": "{\n  \"candidate\": \"{{candidateId}}\",\n  \"job\": \"{{jobId}}\",\n  \"interviewers\": [\"{{employeeId}}\"],\n  \"type\": \"technical\",\n  \"scheduledAt\": \"2026-09-10T10:00:00.000Z\",\n  \"durationMinutes\": 45,\n  \"force\": false\n}"
             },
             "url": { "raw": "{{base_url}}/interviews", "host": ["{{base_url}}"], "path": ["interviews"] },
-            "description": "Omit 'scheduledAt' to let Smart Scheduling auto-find the next open slot. If 'scheduledAt' is given and it conflicts with an existing interview for the same interviewer(s), the API returns 409 unless 'force: true' is set."
+            "description": "Omit 'scheduledAt' to let Smart Scheduling auto-find the next open slot. If 'scheduledAt' is given and it conflicts with an existing interview for the same interviewer(s), the API returns 409 unless 'force: true' is set. Notifies every interviewer in-app, and records a candidate-notification timestamp (candidateNotifiedAt) — candidates have no login, so this is the integration point for an outbound email/SMS provider."
           }
         },
         {
@@ -819,10 +872,12 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "recording", "type": "file", "src": "" }
+                { "key": "recording", "type": "file", "src": "" },
+                { "key": "consentGiven", "type": "text", "value": "true" }
               ]
             },
-            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/recording", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "recording"] }
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/recording", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "recording"] },
+            "description": "Requires explicit candidate consent: either 'consentGiven: true' in this request, or the interview already has consentGiven=true from a prior 'Run AI Scribe' call. Otherwise returns 400."
           }
         }
       ]
@@ -919,6 +974,19 @@
             "method": "GET",
             "url": { "raw": "{{base_url}}/attendance/{{employeeId}}", "host": ["{{base_url}}"], "path": ["attendance", "{{employeeId}}"] }
           }
+        },
+        {
+          "name": "Mark Absentees (HR Sweep)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-24\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/attendance/mark-absentees", "host": ["{{base_url}}"], "path": ["attendance", "mark-absentees"] },
+            "description": "hr_admin only. Marks every active employee with no attendance record on the given date (default: today) as 'absent' (or 'leave' if covered by an approved leave request). Runs automatically every night via cron; this lets you trigger it on demand for testing/backfill. Skips weekends (Fri/Sat)."
+          }
         }
       ]
     },
@@ -929,7 +997,8 @@
           "name": "List My Payroll",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/payroll", "host": ["{{base_url}}"], "path": ["payroll"] }
+            "url": { "raw": "{{base_url}}/payroll", "host": ["{{base_url}}"], "path": ["payroll"] },
+            "description": "A plain employee only sees payroll records with status 'approved' (i.e. issued payslips) — draft records awaiting HR approval are hidden. manager/hr_admin see both."
           }
         },
         {
@@ -949,7 +1018,7 @@
               "raw": "{\n  \"month\": 8,\n  \"year\": 2026,\n  \"baseSalary\": 6000,\n  \"bonuses\": 200,\n  \"deductions\": 50,\n  \"payslipUrl\": \"https://example.com/payslip.pdf\"\n}"
             },
             "url": { "raw": "{{base_url}}/payroll/{{employeeId}}", "host": ["{{base_url}}"], "path": ["payroll", "{{employeeId}}"] },
-            "description": "Manual payroll entry — you supply baseSalary directly. For an attendance-based calculation, use 'Generate Payroll (Auto, from Attendance)' instead."
+            "description": "Manual payroll entry — you supply baseSalary directly. For an attendance-based calculation, use 'Generate Payroll (Auto, from Attendance)' instead. Saved with status 'draft' — call 'Approve Payroll' to issue the payslip to the employee."
           }
         },
         {
@@ -962,7 +1031,15 @@
               "raw": "{\n  \"month\": 8,\n  \"year\": 2026,\n  \"bonuses\": 200,\n  \"deductions\": 0\n}"
             },
             "url": { "raw": "{{base_url}}/payroll/{{employeeId}}/generate", "host": ["{{base_url}}"], "path": ["payroll", "{{employeeId}}", "generate"] },
-            "description": "Uses the employee's baseSalary and their attendance record for the month (working week: Sun-Thu) to compute a per-day deduction for each unpaid absence, then applies optional bonuses/deductions on top."
+            "description": "Uses the employee's baseSalary and their attendance record for the month (working week: Sun-Thu) to compute a per-day deduction for each unpaid absence, then applies optional bonuses/deductions on top. Saved with status 'draft' — call 'Approve Payroll' to issue the payslip to the employee. Run 'Mark Absentees (HR Sweep)' first so absence deductions aren't 0."
+          }
+        },
+        {
+          "name": "Approve Payroll",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/payroll/{{payrollId}}/approve", "host": ["{{base_url}}"], "path": ["payroll", "{{payrollId}}", "approve"] },
+            "description": "hr_admin only. Marks a draft payroll record as 'approved', issuing the payslip: it becomes visible to the employee and downloadable as a PDF, and the employee is notified."
           }
         },
         {
@@ -970,7 +1047,7 @@
           "request": {
             "method": "GET",
             "url": { "raw": "{{base_url}}/payroll/slip/{{payrollId}}/pdf", "host": ["{{base_url}}"], "path": ["payroll", "slip", "{{payrollId}}", "pdf"] },
-            "description": "Accessible to the owning employee, their manager, or HR. Returns a formatted PDF payslip as a binary download."
+            "description": "Accessible to the owning employee, their manager, or HR — but only once the payroll record has status 'approved' (returns 400 for drafts)."
           }
         }
       ]
@@ -1016,7 +1093,7 @@
               "raw": "{\n  \"inApp\": true,\n  \"email\": false\n}"
             },
             "url": { "raw": "{{base_url}}/notifications/preferences", "host": ["{{base_url}}"], "path": ["notifications", "preferences"] },
-            "description": "'inApp' controls whether in-app notifications are created for this user. 'email' is stored as a preference flag but does not currently trigger real email delivery (no mail service is configured in this project)."
+            "description": "'inApp' controls whether in-app notifications are created for this user. 'email' (default false) controls whether the same update is also emailed via Gmail SMTP — requires GMAIL_USER/GMAIL_APP_PASSWORD to be set server-side, otherwise sending no-ops."
           }
         }
       ]
@@ -1109,6 +1186,38 @@
               "path": ["reports", "department-performance", "export"],
               "query": [
                 { "key": "period", "value": "2026-08" },
+                { "key": "format", "value": "excel", "description": "excel | pdf" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Department Attendance & Leave Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/department-attendance-leave?month=8&year=2026",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "department-attendance-leave"],
+              "query": [
+                { "key": "month", "value": "8" },
+                { "key": "year", "value": "2026" }
+              ]
+            },
+            "description": "Average attendance days and average approved-leave days taken per department for the given month."
+          }
+        },
+        {
+          "name": "Export Department Attendance & Leave Report (Excel/PDF)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/reports/department-attendance-leave/export?month=8&year=2026&format=excel",
+              "host": ["{{base_url}}"],
+              "path": ["reports", "department-attendance-leave", "export"],
+              "query": [
+                { "key": "month", "value": "8" },
+                { "key": "year", "value": "2026" },
                 { "key": "format", "value": "excel", "description": "excel | pdf" }
               ]
             }

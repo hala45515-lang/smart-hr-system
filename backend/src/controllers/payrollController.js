@@ -5,6 +5,7 @@ const Employee = require('../models/Employee');
 const Attendance = require('../models/Attendance');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
 const { sendPayslipPdf } = require('../utils/exportUtils');
+const { createNotification } = require('../services/notificationService');
 
 // Working week convention: Sunday-Thursday (Friday/Saturday are the weekend).
 const countWorkingDays = (start, end) => {
@@ -30,17 +31,20 @@ const createPayroll = asyncHandler(async (req, res) => {
 
   const payroll = await Payroll.findOneAndUpdate(
     { employee: req.params.employeeId, month, year },
-    { baseSalary, bonuses, deductions, netSalary, payslipUrl, paidAt: new Date() },
+    { baseSalary, bonuses, deductions, netSalary, payslipUrl, status: 'draft' },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
-  created(res, payroll, 'Payroll record saved');
+  created(res, payroll, 'Payroll record saved as draft — approve it to issue the payslip');
 });
 
-// @desc  List payroll records for an employee (defaults to self)
+// @desc  List payroll records for an employee (defaults to self). Plain employees only
+//        see approved (issued) payslips; managers/HR also see drafts pending approval.
 // @route GET /api/payroll/:employeeId?
 const listPayroll = asyncHandler(async (req, res) => {
   const employeeId = await resolveEmployeeId(req);
-  const records = await Payroll.find({ employee: employeeId }).sort({ year: -1, month: -1 });
+  const filter = { employee: employeeId };
+  if (req.user.role === 'employee') filter.status = 'approved';
+  const records = await Payroll.find(filter).sort({ year: -1, month: -1 });
   ok(res, records);
 });
 
@@ -76,12 +80,38 @@ const generatePayroll = asyncHandler(async (req, res) => {
       absentDays,
       attendanceDeduction,
       generatedFromAttendance: true,
-      paidAt: new Date(),
+      status: 'draft',
     },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
 
-  created(res, payroll, 'Payroll generated from attendance');
+  created(res, payroll, 'Payroll generated as draft from attendance — approve it to issue the payslip');
+});
+
+// @desc  HR approves a draft payroll record, which issues the payslip and notifies the employee
+// @route PATCH /api/payroll/:payrollId/approve
+const approvePayroll = asyncHandler(async (req, res) => {
+  const payroll = await Payroll.findById(req.params.payrollId);
+  if (!payroll) throw new ApiError(404, 'Payroll record not found');
+  if (payroll.status === 'approved') throw new ApiError(400, 'This payroll record has already been approved');
+
+  payroll.status = 'approved';
+  payroll.approvedBy = req.user._id;
+  payroll.paidAt = new Date();
+  await payroll.save();
+
+  const employee = await Employee.findById(payroll.employee).populate('user', '_id');
+  if (employee?.user) {
+    await createNotification({
+      userId: employee.user._id,
+      type: 'general',
+      title: 'New payslip issued',
+      message: `Your payslip for ${payroll.month}/${payroll.year} is ready — net salary ${payroll.netSalary}.`,
+      meta: { payrollId: payroll._id },
+    });
+  }
+
+  ok(res, payroll, 'Payroll approved and payslip issued');
 });
 
 // @desc  Download a payroll record's payslip as a PDF (the owning employee, their manager, or HR)
@@ -89,6 +119,7 @@ const generatePayroll = asyncHandler(async (req, res) => {
 const downloadPayslipPdf = asyncHandler(async (req, res) => {
   const payroll = await Payroll.findById(req.params.payrollId);
   if (!payroll) throw new ApiError(404, 'Payroll record not found');
+  if (payroll.status !== 'approved') throw new ApiError(400, 'This payslip has not been approved/issued yet');
 
   const employee = await Employee.findById(payroll.employee).populate('user', 'name').populate('department', 'name');
   if (!employee) throw new ApiError(404, 'Employee not found');
@@ -109,4 +140,4 @@ const downloadPayslipPdf = asyncHandler(async (req, res) => {
   );
 });
 
-module.exports = { createPayroll, listPayroll, generatePayroll, downloadPayslipPdf };
+module.exports = { createPayroll, listPayroll, generatePayroll, approvePayroll, downloadPayslipPdf };

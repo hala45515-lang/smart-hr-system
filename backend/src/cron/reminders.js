@@ -5,7 +5,9 @@ const {
   checkExpiringDocuments,
   checkForgottenCheckouts,
   checkRepeatedLateness,
+  checkStaleEmergencyInfo,
 } = require('../services/notificationService');
+const { markAbsentees } = require('../services/attendanceService');
 
 /**
  * Smart Leave & Task Assistant + Employee Vault reminders.
@@ -18,6 +20,7 @@ const scheduleReminders = () => {
       await checkUpcomingTasks();
       await checkExpiringDocuments();
       await checkRepeatedLateness();
+      await checkStaleEmergencyInfo();
       console.log('[cron] Daily HR reminders processed');
     } catch (err) {
       console.error('[cron] Failed to process daily reminders:', err.message);
@@ -31,6 +34,18 @@ const scheduleReminders = () => {
       console.log('[cron] Forgotten checkout sweep processed');
     } catch (err) {
       console.error('[cron] Failed to process forgotten checkout sweep:', err.message);
+    }
+  });
+
+  // End-of-day absence sweep — marks employees with no attendance record as
+  // absent (or on leave, if covered by an approved leave request) so reports,
+  // the HR dashboard, and payroll all see accurate attendance data.
+  cron.schedule('45 23 * * *', async () => {
+    try {
+      const { marked } = await markAbsentees(new Date());
+      console.log(`[cron] Absence sweep processed (${marked} record(s) marked)`);
+    } catch (err) {
+      console.error('[cron] Failed to process absence sweep:', err.message);
     }
   });
 };

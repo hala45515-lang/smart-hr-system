@@ -5,6 +5,7 @@ const Candidate = require('../models/Candidate');
 const aiService = require('../services/aiService');
 const schedulingService = require('../services/schedulingService');
 const { createNotification } = require('../services/notificationService');
+const { sendEmail } = require('../services/emailService');
 
 // @desc  List interviews (optionally by candidate)
 // @route GET /api/interviews
@@ -62,7 +63,7 @@ const createInterview = asyncHandler(async (req, res) => {
     durationMinutes: duration,
   });
 
-  await Candidate.findByIdAndUpdate(candidate, { stage: 'interview' });
+  const candidateDoc = await Candidate.findByIdAndUpdate(candidate, { stage: 'interview' }, { new: true });
 
   for (const interviewerId of interviewers) {
     await createNotification({
@@ -72,6 +73,18 @@ const createInterview = asyncHandler(async (req, res) => {
       message: `You have a ${interview.type} interview scheduled on ${startAt.toLocaleString()}.`,
       meta: { interviewId: interview._id },
     });
+  }
+
+  // Candidates don't have in-app accounts, so they're notified by email directly
+  // (sendEmail no-ops with a log line until RESEND_API_KEY is configured).
+  if (candidateDoc?.email) {
+    await sendEmail({
+      to: candidateDoc.email,
+      subject: 'Your interview has been scheduled',
+      html: `<p>Hi ${candidateDoc.name},</p><p>Your ${interview.type} interview has been scheduled for ${startAt.toLocaleString()}.</p>`,
+    });
+    interview.candidateNotifiedAt = new Date();
+    await interview.save();
   }
 
   created(res, interview, 'Interview scheduled');
@@ -153,12 +166,19 @@ const attachRecording = asyncHandler(async (req, res) => {
   const recordingUrl = req.file ? `/uploads/recordings/${req.file.filename}` : req.body.videoRecordingUrl;
   if (!recordingUrl) throw new ApiError(400, 'a recording file or videoRecordingUrl is required');
 
-  const interview = await Interview.findByIdAndUpdate(
-    req.params.id,
-    { videoRecordingUrl: recordingUrl, status: 'completed' },
-    { new: true }
-  );
+  const interview = await Interview.findById(req.params.id);
   if (!interview) throw new ApiError(404, 'Interview not found');
+
+  // The candidate's consent must cover the recording, not just the AI Scribe transcript step.
+  if (!interview.consentGiven && !req.body.consentGiven) {
+    throw new ApiError(400, "consentGiven must be true — the candidate's explicit consent is required to store the interview recording");
+  }
+
+  interview.videoRecordingUrl = recordingUrl;
+  interview.status = 'completed';
+  interview.consentGiven = true;
+  await interview.save();
+
   ok(res, interview, 'Recording attached to candidate file');
 });
 

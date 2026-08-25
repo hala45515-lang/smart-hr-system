@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const LeaveRequest = require('../models/LeaveRequest');
 const LeaveBalance = require('../models/LeaveBalance');
+const Employee = require('../models/Employee');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
 const { findLeaveConflicts, createNotification } = require('../services/notificationService');
 
@@ -67,6 +68,26 @@ const listLeaveRequests = asyncHandler(async (req, res) => {
   ok(res, requests);
 });
 
+// @desc  List all pending leave requests across every employee, for HR/manager review
+// @route GET /api/leave/requests/pending
+const listPendingLeaveRequests = asyncHandler(async (req, res) => {
+  let employeeFilter = {};
+  if (req.user.role === 'manager') {
+    const managerEmployee = await Employee.findOne({ user: req.user._id }).select('department');
+    if (managerEmployee?.department) {
+      const teamIds = await Employee.find({ department: managerEmployee.department }).select('_id');
+      employeeFilter = { employee: { $in: teamIds.map((e) => e._id) } };
+    }
+  }
+
+  const requests = await LeaveRequest.find({ status: 'pending', ...employeeFilter })
+    .sort({ createdAt: 1 })
+    .populate({ path: 'employee', populate: [{ path: 'user', select: 'name email' }, { path: 'department', select: 'name' }] })
+    .populate('leaveType', 'name');
+
+  ok(res, requests);
+});
+
 // @desc  Manager/HR approves or rejects a leave request
 // @route PATCH /api/leave/requests/:requestId/decision
 const decideLeaveRequest = asyncHandler(async (req, res) => {
@@ -76,6 +97,9 @@ const decideLeaveRequest = asyncHandler(async (req, res) => {
   const leaveRequest = await LeaveRequest.findById(req.params.requestId).populate({ path: 'employee', populate: 'user' });
   if (!leaveRequest) throw new ApiError(404, 'Leave request not found');
   if (leaveRequest.status !== 'pending') throw new ApiError(400, 'This request has already been decided');
+
+  // Surface team conflicts to the reviewer at decision time, not just to the requester at submission time.
+  const conflicts = await findLeaveConflicts(leaveRequest.employee._id, leaveRequest.startDate, leaveRequest.endDate);
 
   leaveRequest.status = decision;
   leaveRequest.approvedBy = req.user._id;
@@ -101,7 +125,14 @@ const decideLeaveRequest = asyncHandler(async (req, res) => {
     });
   }
 
-  ok(res, leaveRequest, `Leave request ${decision}`);
+  ok(res, {
+    leaveRequest,
+    teamConflicts: conflicts.map((c) => ({
+      employeeName: c.employee?.user?.name,
+      startDate: c.startDate,
+      endDate: c.endDate,
+    })),
+  }, `Leave request ${decision}`);
 });
 
 // @desc  Cancel a pending leave request (by the employee)
@@ -133,6 +164,7 @@ module.exports = {
   getBalances,
   createLeaveRequest,
   listLeaveRequests,
+  listPendingLeaveRequests,
   decideLeaveRequest,
   cancelLeaveRequest,
   setLeaveBalance,

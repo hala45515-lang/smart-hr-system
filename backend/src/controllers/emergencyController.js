@@ -2,13 +2,13 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const { EmergencyContact, EmployeeMedicalInfo } = require('../models/EmergencyContact');
 const Employee = require('../models/Employee');
-const { resolveEmployeeId } = require('../utils/resolveEmployee');
+const { resolveEmployeeIdHrOnly } = require('../utils/resolveEmployee');
 const { generateQrDataUrl } = require('../utils/qrCode');
 
 // @desc  Family & Emergency Info Hub — list emergency contacts + medical info
 // @route GET /api/emergency/:employeeId?
 const getEmergencyInfo = asyncHandler(async (req, res) => {
-  const employeeId = await resolveEmployeeId(req);
+  const employeeId = await resolveEmployeeIdHrOnly(req);
   const [contacts, medicalInfo] = await Promise.all([
     EmergencyContact.find({ employee: employeeId }),
     EmployeeMedicalInfo.findOne({ employee: employeeId }),
@@ -19,7 +19,7 @@ const getEmergencyInfo = asyncHandler(async (req, res) => {
 // @desc  Add an emergency contact
 // @route POST /api/emergency/:employeeId/contacts
 const addEmergencyContact = asyncHandler(async (req, res) => {
-  const employeeId = await resolveEmployeeId(req);
+  const employeeId = await resolveEmployeeIdHrOnly(req);
   const { name, relationship, phone, isPrimary } = req.body;
   if (!name || !relationship || !phone) throw new ApiError(400, 'name, relationship and phone are required');
 
@@ -33,7 +33,7 @@ const addEmergencyContact = asyncHandler(async (req, res) => {
 // @desc  Update/create medical info (blood type, allergies, chronic conditions)
 // @route PUT /api/emergency/:employeeId/medical
 const upsertMedicalInfo = asyncHandler(async (req, res) => {
-  const employeeId = await resolveEmployeeId(req);
+  const employeeId = await resolveEmployeeIdHrOnly(req);
   const { bloodType, allergies, chronicConditions } = req.body;
 
   const medicalInfo = await EmployeeMedicalInfo.findOneAndUpdate(
@@ -47,7 +47,7 @@ const upsertMedicalInfo = asyncHandler(async (req, res) => {
 // @desc  Emergency QR Code — generates a scannable QR pointing to the public emergency view
 // @route GET /api/emergency/:employeeId?/qr
 const getEmergencyQr = asyncHandler(async (req, res) => {
-  const employeeId = await resolveEmployeeId(req);
+  const employeeId = await resolveEmployeeIdHrOnly(req);
   const medicalInfo = await EmployeeMedicalInfo.findOneAndUpdate(
     { employee: employeeId },
     {},

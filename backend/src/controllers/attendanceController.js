@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const Attendance = require('../models/Attendance');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
+const { markAbsentees } = require('../services/attendanceService');
 
 const startOfDay = (date) => {
   const d = new Date(date);
@@ -61,4 +62,14 @@ const getAttendance = asyncHandler(async (req, res) => {
   ok(res, records);
 });
 
-module.exports = { checkIn, checkOut, getAttendance };
+// @desc  HR-triggered sweep that marks employees with no attendance record on
+//        a given date (default: today) as absent or on-leave. Runs automatically
+//        every night via cron, but can also be triggered manually/for testing.
+// @route POST /api/attendance/mark-absentees
+const runAbsenceSweep = asyncHandler(async (req, res) => {
+  const date = req.body.date ? new Date(req.body.date) : new Date();
+  const result = await markAbsentees(date);
+  ok(res, result, 'Absence sweep processed');
+});
+
+module.exports = { checkIn, checkOut, getAttendance, runAbsenceSweep };

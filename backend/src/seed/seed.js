@@ -56,6 +56,7 @@ const run = async () => {
   await LeaveType.insertMany([
     { name: 'Annual', defaultDaysPerYear: 21 },
     { name: 'Sick', defaultDaysPerYear: 10 },
+    { name: 'Emergency', defaultDaysPerYear: 5 },
     { name: 'Unpaid', defaultDaysPerYear: 0 },
   ]);
 

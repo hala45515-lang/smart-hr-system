@@ -19,4 +19,23 @@ const resolveEmployeeId = async (req) => {
   return own._id;
 };
 
-module.exports = { resolveEmployeeId };
+/**
+ * Same as resolveEmployeeId, but for data that must stay HR-only when accessed
+ * on behalf of another employee (e.g. emergency/medical info) — managers do NOT
+ * get cross-employee access here, only hr_admin does. Self-access still works
+ * for every role.
+ */
+const resolveEmployeeIdHrOnly = async (req) => {
+  const requestedId = req.params.employeeId;
+  if (requestedId && req.user.role === 'hr_admin') {
+    return requestedId;
+  }
+  const own = await Employee.findOne({ user: req.user._id }).select('_id');
+  if (!own) throw new ApiError(404, 'No employee profile linked to this user');
+  if (requestedId && String(own._id) !== String(requestedId)) {
+    throw new ApiError(403, 'Only HR can access another employee\'s emergency data');
+  }
+  return own._id;
+};
+
+module.exports = { resolveEmployeeId, resolveEmployeeIdHrOnly };

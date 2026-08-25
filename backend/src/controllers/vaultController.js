@@ -23,15 +23,16 @@ const listDocuments = asyncHandler(async (req, res) => {
   ok(res, { documents, missingTypes, daysUntilContractExpiry });
 });
 
-// @desc  Upload a document into the vault
-// @route POST /api/vault/:employeeId
+// @desc  Upload a document into the vault (an employee can upload their own; HR/manager can upload on any employee's behalf)
+// @route POST /api/vault/:employeeId?
 const uploadDocument = asyncHandler(async (req, res) => {
+  const employeeId = await resolveEmployeeId(req);
   const { type, title, issueDate, expiryDate } = req.body;
   if (!type || !title) throw new ApiError(400, 'type and title are required');
   if (!req.file) throw new ApiError(400, 'file is required');
 
   const document = await Document.create({
-    employee: req.params.employeeId,
+    employee: employeeId,
     type,
     title,
     fileUrl: `/uploads/documents/${req.file.filename}`,

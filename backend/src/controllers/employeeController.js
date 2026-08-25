@@ -3,6 +3,10 @@ const { ApiError, ok, created } = require('../utils/apiResponse');
 const Employee = require('../models/Employee');
 const User = require('../models/User');
 const CareerEvent = require('../models/CareerEvent');
+const Attendance = require('../models/Attendance');
+const LeaveRequest = require('../models/LeaveRequest');
+const Payroll = require('../models/Payroll');
+const Evaluation = require('../models/Evaluation');
 const { logAudit } = require('../services/auditService');
 
 // @desc  HR admin creates a full employee (user account + employee profile)
@@ -64,7 +68,39 @@ const getEmployee = asyncHandler(async (req, res) => {
     .populate('department', 'name')
     .populate('manager', 'position');
   if (!employee) throw new ApiError(404, 'Employee not found');
+
+  if (req.user.role === 'employee' && String(employee.user._id) !== String(req.user._id)) {
+    throw new ApiError(403, 'You can only access your own records');
+  }
+
   ok(res, employee);
+});
+
+// @desc  Full record for an employee — attendance, leave requests, payroll and
+//        evaluations composed into a single response (US-010's "full history" view)
+// @route GET /api/employees/:id/full-record
+const getEmployeeFullRecord = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id)
+    .populate('user', 'name email role')
+    .populate('department', 'name')
+    .populate('manager', 'position');
+  if (!employee) throw new ApiError(404, 'Employee not found');
+
+  if (req.user.role === 'employee' && String(employee.user._id) !== String(req.user._id)) {
+    throw new ApiError(403, 'You can only access your own records');
+  }
+
+  const payrollFilter = { employee: employee._id };
+  if (req.user.role === 'employee') payrollFilter.status = 'approved';
+
+  const [attendance, leaveRequests, payroll, evaluations] = await Promise.all([
+    Attendance.find({ employee: employee._id }).sort({ date: -1 }).limit(90),
+    LeaveRequest.find({ employee: employee._id }).sort({ startDate: -1 }).populate('leaveType', 'name'),
+    Payroll.find(payrollFilter).sort({ year: -1, month: -1 }),
+    Evaluation.find({ employee: employee._id }).sort({ createdAt: -1 }).populate('evaluator', 'name'),
+  ]);
+
+  ok(res, { employee, attendance, leaveRequests, payroll, evaluations });
 });
 
 // @desc  Update employee profile fields
@@ -156,6 +192,7 @@ module.exports = {
   createEmployee,
   listEmployees,
   getEmployee,
+  getEmployeeFullRecord,
   updateEmployee,
   addSkill,
   addCourse,

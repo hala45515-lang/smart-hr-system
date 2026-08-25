@@ -3,6 +3,7 @@ const {
   getBalances,
   createLeaveRequest,
   listLeaveRequests,
+  listPendingLeaveRequests,
   decideLeaveRequest,
   cancelLeaveRequest,
   setLeaveBalance,
@@ -18,6 +19,7 @@ router.get('/balances', getBalances);
 router.get('/:employeeId/balances', getBalances);
 router.post('/:employeeId/balances', allowRoles('hr_admin'), setLeaveBalance);
 
+router.get('/requests/pending', allowRoles('manager', 'hr_admin'), listPendingLeaveRequests);
 router.get('/requests', listLeaveRequests);
 router.get('/:employeeId/requests', listLeaveRequests);
 router.post('/requests', leaveAttachmentUpload.single('attachment'), createLeaveRequest);

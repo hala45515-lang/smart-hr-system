@@ -89,4 +89,19 @@ const hireCandidate = asyncHandler(async (req, res) => {
   created(res, { candidate, employee }, 'Candidate hired and converted to an employee');
 });
 
-module.exports = { listCandidates, getCandidate, createCandidate, updateCandidateStage, hireCandidate };
+// @desc  Add an internal note to a candidate's file
+// @route POST /api/candidates/:id/notes
+const addCandidateNote = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+  if (!text) throw new ApiError(400, 'text is required');
+
+  const candidate = await Candidate.findByIdAndUpdate(
+    req.params.id,
+    { $push: { notes: { text, by: req.user._id, at: new Date() } } },
+    { new: true }
+  );
+  if (!candidate) throw new ApiError(404, 'Candidate not found');
+  created(res, candidate, 'Note added');
+});
+
+module.exports = { listCandidates, getCandidate, createCandidate, updateCandidateStage, hireCandidate, addCandidateNote };

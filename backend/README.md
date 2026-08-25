@@ -41,6 +41,12 @@ Sample accounts created by `npm run seed` (password: `password123`):
 
 `GEMINI_API_KEY` in `.env` is optional (get a free key at https://aistudio.google.com/apikey). If set, the AI HR Companion, AI Scribe, Employer Branding post suggestions, and development-tip generation call Google Gemini for open-ended answers. If unset (default), all AI-labeled endpoints still work using deterministic rule-based logic, so the API runs fully standalone.
 
+## Email notifications
+
+`GMAIL_USER` + `GMAIL_APP_PASSWORD` in `.env` are optional (Gmail SMTP via `nodemailer`). Every notification created via `notificationService.createNotification` (leave decisions, low leave balance, payslip issued, document/contract expiry, repeated lateness, stale emergency info, task due) is still written in-app, and is **also** emailed to the recipient if their `notificationPreferences.email` is `true` (`PATCH /api/notifications/preferences`, default `false`). Candidates being scheduled for an interview are emailed directly (they have no in-app account). If either env var is unset, email sending no-ops with a console log — everything else keeps working.
+
+`GMAIL_APP_PASSWORD` must be a Google **App Password**, not your normal Gmail login password: enable 2-Step Verification on the Gmail account, then generate one at Google Account -> Security -> App passwords. Unlike a domain-based email API, Gmail SMTP can send to any recipient immediately, no domain verification needed — but it's rate-limited (~500 emails/day) and best treated as a dev/small-scale option, not a production mail provider.
+
 ## Auth
 
 - `POST /api/auth/register` — create a user (also see `POST /api/employees` for HR to provision a full employee)
@@ -60,7 +66,7 @@ Most "my data" endpoints default to the logged-in user's own employee record whe
 | 3. Performance Score | `GET /api/performance[/:employeeId]`, `GET /api/performance[/:employeeId]/history`, `POST /api/evaluations/:employeeId` |
 | 4. AI HR Companion | `POST /api/chatbot/ask`, `GET /api/chatbot/history` |
 | 5. Employee Vault | `GET/POST /api/vault[/:employeeId]`, `GET /api/vault[/:employeeId]/salary-history`, `DELETE /api/vault/document/:documentId` |
-| 6. Leave & Task Assistant | `GET /api/leave/:employeeId/balances`, `POST /api/leave/requests`, `PATCH /api/leave/requests/:requestId/decision|cancel`, `GET/POST /api/tasks`, `PATCH/DELETE /api/tasks/item/:taskId` |
+| 6. Leave & Task Assistant | `GET /api/leave/:employeeId/balances`, `POST /api/leave/requests`, `GET /api/leave/requests/pending` (HR/manager), `PATCH /api/leave/requests/:requestId/decision|cancel`, `GET/POST /api/tasks`, `PATCH/DELETE /api/tasks/item/:taskId` |
 | 7. Family & Emergency Info Hub | `GET /api/emergency[/:employeeId]`, `POST /api/emergency/:employeeId/contacts`, `PUT /api/emergency/:employeeId/medical` |
 | 8. Emergency QR Code | `GET /api/emergency/:employeeId/qr` (auth), `GET /api/emergency/public/:qrToken` (public, for scanning) |
 | 9. AI Scribe | `POST /api/interviews/:id/scribe`, `PATCH /api/interviews/:id/evaluation` |
@@ -69,7 +75,7 @@ Most "my data" endpoints default to the logged-in user's own employee record whe
 | 12. Video Interview Native | `POST /api/interviews/:id/notes`, `PATCH /api/interviews/:id/recording` |
 | 13. Internal Referral / Transfer Network | `POST /api/referrals`, `GET /api/referrals`, `GET /api/referrals/:id/candidate-profile`, `PATCH /api/referrals/:id/decision` |
 
-Supporting modules: `/api/employees`, `/api/departments`, `/api/jobs`, `/api/candidates`, `/api/attendance` (check-in/out), `/api/payroll`, `/api/leave-types`, `/api/notifications`.
+Supporting modules: `/api/employees` (incl. `GET /:id/full-record` — attendance/leave/payroll/evaluations composed in one response), `/api/departments`, `/api/jobs` (each job includes an `applicantCount`), `/api/candidates` (incl. `POST /:id/notes`), `/api/attendance` (check-in/out, `POST /mark-absentees`), `/api/payroll` (draft → `PATCH /:payrollId/approve` → issued), `/api/leave-types`, `/api/notifications`, `/api/dashboard`, `/api/reports`, `/api/audit-logs`.
 
 ## Notifications & reminders
 
@@ -77,8 +83,12 @@ A daily cron job (`src/cron/reminders.js`, 08:00 server time) scans for:
 - low leave balances
 - tasks due within 48 hours
 - documents/contracts expiring within 30 days
+- repeated lateness (>= 3 late days this month) — notifies the employee's manager and HR
+- missing/stale emergency contact & medical info (not updated in 180+ days)
 
-...and writes results into `/api/notifications` for the affected users. Leave-conflict detection with teammates runs synchronously whenever a leave request is submitted (`POST /api/leave/requests`).
+A separate evening job (20:00) flags forgotten checkouts, and a late-night job (23:45) marks employees with no attendance record that day as `absent` (or `leave`, if covered by an approved leave request) — this is also exposed as `POST /api/attendance/mark-absentees` for on-demand/testing use, and is what makes attendance reports, the HR dashboard, and attendance-based payroll deductions actually populate.
+
+All of the above write into `/api/notifications` for the affected users. Leave-conflict detection with teammates runs synchronously whenever a leave request is submitted (`POST /api/leave/requests`), and is re-surfaced to the reviewer in the response of `PATCH /api/leave/requests/:requestId/decision`.
 
 ## Project structure
 
@@ -99,6 +109,8 @@ src/
 ## Notes / known limitations
 
 - File uploads (documents, resumes, interview recordings) are stored on local disk under `uploads/`. Swap `middleware/upload.js` for S3/GCS storage in production.
-- The AI Scribe requires `consentGiven: true` on the transcript submission, matching the user story's "بإذن المرشح" (with the candidate's consent).
+- The AI Scribe requires `consentGiven: true` on both the transcript submission (`POST /api/interviews/:id/scribe`) and the recording attachment (`PATCH /api/interviews/:id/recording`), matching the user story's "بإذن المرشح" (with the candidate's consent) for each artifact.
+- Candidates have no login/user account, so scheduling an interview logs an outbound-notification placeholder (`console.log`, `Interview.candidateNotifiedAt`) instead of sending a real email/SMS — wire up a mail provider there for production.
+- Payroll records go through a draft → approved workflow: `POST /api/payroll/:employeeId` / `.../generate` create a `draft`, and `PATCH /api/payroll/:payrollId/approve` issues the payslip (visible to the employee, downloadable, and notified). A plain `employee` only ever sees `approved` records.
 - Performance Score weights (40% manager rating / 25% attendance / 25% task completion / 10% self-development) are a starting point — tune in `src/services/performanceService.js`.
-- No live MongoDB instance was available in this environment to run an end-to-end smoke test; the full module require-chain (every route → controller → service → model) was verified to load without errors. Run `npm run dev` against a real MongoDB to do a live test.
+- Verified end-to-end against a live MongoDB instance (login, permission checks, leave, emergency access, document upload, payroll draft/approve, jobs/candidates/interviews, the absence sweep) — see `npm run seed` for sample accounts to try it yourself.

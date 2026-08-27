@@ -136,13 +136,19 @@ const runAiScribe = asyncHandler(async (req, res) => {
 // @route PATCH /api/interviews/:id/evaluation
 const updateEvaluation = asyncHandler(async (req, res) => {
   const { aiSummary, aiEvaluation, status } = req.body;
-  const updates = {};
-  if (aiSummary !== undefined) updates.aiSummary = aiSummary;
-  if (aiEvaluation !== undefined) updates.aiEvaluation = aiEvaluation;
-  if (status) updates.status = status;
 
-  const interview = await Interview.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+  const interview = await Interview.findById(req.params.id);
   if (!interview) throw new ApiError(404, 'Interview not found');
+
+  if (aiSummary !== undefined) interview.aiSummary = aiSummary;
+  if (aiEvaluation !== undefined) {
+    // Merge field-by-field so HR can edit e.g. just overallRating without
+    // wiping out the AI-suggested strengths/concerns/recommendation.
+    interview.aiEvaluation = { ...(interview.aiEvaluation?.toObject?.() ?? interview.aiEvaluation ?? {}), ...aiEvaluation };
+  }
+  if (status) interview.status = status;
+
+  await interview.save();
   ok(res, interview, 'Evaluation updated');
 });
 

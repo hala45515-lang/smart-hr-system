@@ -746,7 +746,8 @@
               "mode": "raw",
               "raw": "{\n  \"title\": \"Backend Developer\",\n  \"department\": \"{{departmentId}}\",\n  \"description\": \"Build and maintain backend services\",\n  \"requirements\": [\"Node.js\", \"MongoDB\", \"3+ years experience\"],\n  \"openings\": 2\n}"
             },
-            "url": { "raw": "{{base_url}}/jobs", "host": ["{{base_url}}"], "path": ["jobs"] }
+            "url": { "raw": "{{base_url}}/jobs", "host": ["{{base_url}}"], "path": ["jobs"] },
+            "description": "title, department, description and a non-empty requirements array are all required."
           }
         },
         {
@@ -807,7 +808,8 @@
               "mode": "raw",
               "raw": "{\n  \"stage\": \"interview\"\n}"
             },
-            "url": { "raw": "{{base_url}}/candidates/{{candidateId}}/stage", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}", "stage"] }
+            "url": { "raw": "{{base_url}}/candidates/{{candidateId}}/stage", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}", "stage"] },
+            "description": "stage must be one of: applied, screening, interview, offer, hired, rejected."
           }
         },
         {

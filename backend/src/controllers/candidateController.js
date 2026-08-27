@@ -37,10 +37,15 @@ const createCandidate = asyncHandler(async (req, res) => {
   created(res, candidate, 'Candidate added');
 });
 
+const VALID_STAGES = ['applied', 'screening', 'interview', 'offer', 'hired', 'rejected'];
+
 const updateCandidateStage = asyncHandler(async (req, res) => {
   const { stage } = req.body;
   if (!stage) throw new ApiError(400, 'stage is required');
-  const candidate = await Candidate.findByIdAndUpdate(req.params.id, { stage }, { new: true });
+  if (!VALID_STAGES.includes(stage)) {
+    throw new ApiError(400, `stage must be one of: ${VALID_STAGES.join(', ')}`);
+  }
+  const candidate = await Candidate.findByIdAndUpdate(req.params.id, { stage }, { new: true, runValidators: true });
   if (!candidate) throw new ApiError(404, 'Candidate not found');
   ok(res, candidate, 'Candidate stage updated');
 });

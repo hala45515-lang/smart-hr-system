@@ -31,13 +31,24 @@ const getJob = asyncHandler(async (req, res) => {
 
 const createJob = asyncHandler(async (req, res) => {
   const { title, department, description, requirements, openings } = req.body;
-  if (!title) throw new ApiError(400, 'title is required');
+  if (!title || !department || !description) {
+    throw new ApiError(400, 'title, department and description are required');
+  }
+  if (!Array.isArray(requirements) || requirements.length === 0) {
+    throw new ApiError(400, 'requirements must be a non-empty array of strings');
+  }
   const job = await Job.create({ title, department, description, requirements, openings, createdBy: req.user._id });
   created(res, job, 'Job posted');
 });
 
 const updateJob = asyncHandler(async (req, res) => {
-  const job = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const allowed = ['title', 'department', 'description', 'requirements', 'openings', 'status'];
+  const updates = {};
+  allowed.forEach((key) => {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  });
+
+  const job = await Job.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
   if (!job) throw new ApiError(404, 'Job not found');
   ok(res, job, 'Job updated');
 });

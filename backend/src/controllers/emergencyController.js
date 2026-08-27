@@ -5,6 +5,18 @@ const Employee = require('../models/Employee');
 const { resolveEmployeeIdHrOnly } = require('../utils/resolveEmployee');
 const { generateQrDataUrl } = require('../utils/qrCode');
 
+/**
+ * Same access rule as resolveEmployeeIdHrOnly, applied to a contact/record we
+ * already loaded by its own id rather than by :employeeId — self, or HR only.
+ */
+const assertOwnOrHr = async (req, employeeId) => {
+  if (req.user.role === 'hr_admin') return;
+  const own = await Employee.findOne({ user: req.user._id }).select('_id');
+  if (!own || String(own._id) !== String(employeeId)) {
+    throw new ApiError(403, "Only HR can access another employee's emergency data");
+  }
+};
+
 // @desc  Family & Emergency Info Hub — list emergency contacts + medical info
 // @route GET /api/emergency/:employeeId?
 const getEmergencyInfo = asyncHandler(async (req, res) => {
@@ -28,6 +40,37 @@ const addEmergencyContact = asyncHandler(async (req, res) => {
   }
   const contact = await EmergencyContact.create({ employee: employeeId, name, relationship, phone, isPrimary });
   created(res, contact, 'Emergency contact added');
+});
+
+// @desc  Update an existing emergency contact's details
+// @route PUT /api/emergency/contacts/:contactId
+const updateEmergencyContact = asyncHandler(async (req, res) => {
+  const contact = await EmergencyContact.findById(req.params.contactId);
+  if (!contact) throw new ApiError(404, 'Emergency contact not found');
+  await assertOwnOrHr(req, contact.employee);
+
+  const { name, relationship, phone, isPrimary } = req.body;
+  if (isPrimary) {
+    await EmergencyContact.updateMany({ employee: contact.employee, _id: { $ne: contact._id } }, { isPrimary: false });
+  }
+  if (name !== undefined) contact.name = name;
+  if (relationship !== undefined) contact.relationship = relationship;
+  if (phone !== undefined) contact.phone = phone;
+  if (isPrimary !== undefined) contact.isPrimary = isPrimary;
+  await contact.save();
+
+  ok(res, contact, 'Emergency contact updated');
+});
+
+// @desc  Remove an emergency contact
+// @route DELETE /api/emergency/contacts/:contactId
+const deleteEmergencyContact = asyncHandler(async (req, res) => {
+  const contact = await EmergencyContact.findById(req.params.contactId);
+  if (!contact) throw new ApiError(404, 'Emergency contact not found');
+  await assertOwnOrHr(req, contact.employee);
+
+  await contact.deleteOne();
+  ok(res, null, 'Emergency contact deleted');
 });
 
 // @desc  Update/create medical info (blood type, allergies, chronic conditions)
@@ -77,4 +120,12 @@ const getPublicEmergencyInfo = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getEmergencyInfo, addEmergencyContact, upsertMedicalInfo, getEmergencyQr, getPublicEmergencyInfo };
+module.exports = {
+  getEmergencyInfo,
+  addEmergencyContact,
+  updateEmergencyContact,
+  deleteEmergencyContact,
+  upsertMedicalInfo,
+  getEmergencyQr,
+  getPublicEmergencyInfo,
+};

@@ -287,9 +287,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"message\": \"How many vacation days do I have left?\"\n}"
+              "raw": "{\n  \"question\": \"How many vacation days do I have left?\"\n}"
             },
-            "url": { "raw": "{{base_url}}/chatbot/ask", "host": ["{{base_url}}"], "path": ["chatbot", "ask"] }
+            "url": { "raw": "{{base_url}}/chatbot/ask", "host": ["{{base_url}}"], "path": ["chatbot", "ask"] },
+            "description": "If the AI/rule-based logic can't answer confidently, the response has escalated:true, the employee is notified, and every hr_admin is notified + the question is added to the 'List Escalated Questions' queue below."
           }
         },
         {
@@ -297,6 +298,14 @@
           "request": {
             "method": "GET",
             "url": { "raw": "{{base_url}}/chatbot/history", "host": ["{{base_url}}"], "path": ["chatbot", "history"] }
+          }
+        },
+        {
+          "name": "List Escalated Questions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/chatbot/escalated", "host": ["{{base_url}}"], "path": ["chatbot", "escalated"] },
+            "description": "hr_admin only. The queue of employee questions the AI HR Companion could not answer confidently, for HR to follow up on."
           }
         }
       ]
@@ -621,6 +630,27 @@
             },
             "url": { "raw": "{{base_url}}/emergency/{{employeeId}}/contacts", "host": ["{{base_url}}"], "path": ["emergency", "{{employeeId}}", "contacts"] },
             "description": "hr_admin-only for a non-self employeeId."
+          }
+        },
+        {
+          "name": "Update Emergency Contact",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+962790000001\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/emergency/contacts/{{contactId}}", "host": ["{{base_url}}"], "path": ["emergency", "contacts", "{{contactId}}"] },
+            "description": "Edit an existing emergency contact. Self, or HR only for another employee's contact."
+          }
+        },
+        {
+          "name": "Delete Emergency Contact",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/emergency/contacts/{{contactId}}", "host": ["{{base_url}}"], "path": ["emergency", "contacts", "{{contactId}}"] },
+            "description": "Self, or HR only for another employee's contact."
           }
         },
         {

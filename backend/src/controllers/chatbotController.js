@@ -4,6 +4,7 @@ const Employee = require('../models/Employee');
 const LeaveBalance = require('../models/LeaveBalance');
 const Document = require('../models/Document');
 const ChatLog = require('../models/ChatLog');
+const User = require('../models/User');
 const aiService = require('../services/aiService');
 const { createNotification } = require('../services/notificationService');
 
@@ -45,13 +46,26 @@ const ask = asyncHandler(async (req, res) => {
   });
 
   if (result.escalated) {
-    // Notify HR admins would normally target a queue; here we just log it as unresolved.
+    // Reassure the employee it's being handled...
     await createNotification({
       userId: req.user._id,
       type: 'general',
       title: 'Your question was routed to HR',
       message: `We could not fully answer "${question}" automatically. An HR team member will follow up.`,
     });
+
+    // ...and actually notify HR so someone follows up — see GET /api/chatbot/escalated
+    // for the full queue of unresolved questions.
+    const hrAdmins = await User.find({ role: 'hr_admin' }).select('_id');
+    for (const hrAdmin of hrAdmins) {
+      await createNotification({
+        userId: hrAdmin._id,
+        type: 'general',
+        title: 'Unresolved employee question',
+        message: `${req.user.name} asked: "${question}" — the AI HR Companion could not answer confidently.`,
+        meta: { chatLogId: log._id, employeeUserId: req.user._id },
+      });
+    }
   }
 
   ok(res, { answer: result.answer, escalated: result.escalated, chatLogId: log._id });
@@ -64,4 +78,11 @@ const history = asyncHandler(async (req, res) => {
   ok(res, logs);
 });
 
-module.exports = { ask, history };
+// @desc  Queue of unresolved/escalated employee questions for HR to follow up on
+// @route GET /api/chatbot/escalated
+const listEscalated = asyncHandler(async (req, res) => {
+  const logs = await ChatLog.find({ escalated: true }).sort({ createdAt: -1 }).limit(100).populate('user', 'name email');
+  ok(res, logs);
+});
+
+module.exports = { ask, history, listEscalated };

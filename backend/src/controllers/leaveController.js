@@ -1,3 +1,4 @@
+const path = require('path');
 const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const LeaveRequest = require('../models/LeaveRequest');
@@ -6,6 +7,7 @@ const LeaveType = require('../models/LeaveType');
 const Employee = require('../models/Employee');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
 const { parseDateOnly } = require('../utils/dateOnly');
+const { resolveUploadPath } = require('../utils/fileServe');
 const { findLeaveConflicts, createNotification } = require('../services/notificationService');
 
 const daysBetween = (start, end) => Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -208,6 +210,20 @@ const cancelLeaveRequest = asyncHandler(async (req, res) => {
   ok(res, leaveRequest, 'Leave request cancelled');
 });
 
+// @desc  Download a leave request's supporting attachment (e.g. medical report) —
+//        the owning employee, their manager, or HR. Files are never public.
+// @route GET /api/leave/requests/:requestId/attachment
+const downloadLeaveAttachment = asyncHandler(async (req, res) => {
+  const leaveRequest = await LeaveRequest.findById(req.params.requestId).populate('employee');
+  if (!leaveRequest) throw new ApiError(404, 'Leave request not found');
+  if (!leaveRequest.attachmentUrl) throw new ApiError(404, 'This leave request has no attachment');
+  await assertCanActOnLeaveRequest(req, leaveRequest);
+
+  const filePath = resolveUploadPath(leaveRequest.attachmentUrl);
+  const ext = path.extname(filePath);
+  res.download(filePath, `leave-attachment-${leaveRequest._id}${ext}`);
+});
+
 // @desc  Seed/ensure a leave balance exists for an employee/year (HR admin)
 // @route POST /api/leave/:employeeId/balances
 const setLeaveBalance = asyncHandler(async (req, res) => {
@@ -229,5 +245,6 @@ module.exports = {
   listPendingLeaveRequests,
   decideLeaveRequest,
   cancelLeaveRequest,
+  downloadLeaveAttachment,
   setLeaveBalance,
 };

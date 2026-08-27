@@ -382,6 +382,14 @@
             "method": "DELETE",
             "url": { "raw": "{{base_url}}/vault/document/{{documentId}}", "host": ["{{base_url}}"], "path": ["vault", "document", "{{documentId}}"] }
           }
+        },
+        {
+          "name": "Download Document",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/vault/document/{{documentId}}/download", "host": ["{{base_url}}"], "path": ["vault", "document", "{{documentId}}", "download"] },
+            "description": "Streams the file as a binary download. Accessible to the owning employee, their manager, or HR — uploaded files are never publicly reachable (no /uploads static route)."
+          }
         }
       ]
     },
@@ -490,6 +498,14 @@
           "request": {
             "method": "PATCH",
             "url": { "raw": "{{base_url}}/leave/requests/{{requestId}}/cancel", "host": ["{{base_url}}"], "path": ["leave", "requests", "{{requestId}}", "cancel"] }
+          }
+        },
+        {
+          "name": "Download Leave Attachment",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/leave/requests/{{requestId}}/attachment", "host": ["{{base_url}}"], "path": ["leave", "requests", "{{requestId}}", "attachment"] },
+            "description": "Streams the supporting document (e.g. medical report) as a binary download. Accessible to the requesting employee, their manager (same department), or HR."
           }
         }
       ]
@@ -778,6 +794,14 @@
           }
         },
         {
+          "name": "Download Resume",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/candidates/{{candidateId}}/resume", "host": ["{{base_url}}"], "path": ["candidates", "{{candidateId}}", "resume"] },
+            "description": "Streams the candidate's resume as a binary download. manager/hr_admin only (same as the rest of this module)."
+          }
+        },
+        {
           "name": "Hire Candidate (Convert to Employee)",
           "request": {
             "method": "POST",
@@ -878,6 +902,14 @@
             },
             "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/recording", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "recording"] },
             "description": "Requires explicit candidate consent: either 'consentGiven: true' in this request, or the interview already has consentGiven=true from a prior 'Run AI Scribe' call. Otherwise returns 400."
+          }
+        },
+        {
+          "name": "Download Recording",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/interviews/{{interviewId}}/recording", "host": ["{{base_url}}"], "path": ["interviews", "{{interviewId}}", "recording"] },
+            "description": "Streams the interview recording as a binary download. manager/hr_admin only (same as the rest of this module)."
           }
         }
       ]

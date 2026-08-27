@@ -8,6 +8,7 @@ const {
   updateEvaluation,
   addNote,
   attachRecording,
+  downloadRecording,
 } = require('../controllers/interviewController');
 const { protect } = require('../middleware/auth');
 const { allowRoles } = require('../middleware/role');
@@ -25,5 +26,6 @@ router.post('/:id/scribe', runAiScribe);
 router.patch('/:id/evaluation', updateEvaluation);
 router.post('/:id/notes', addNote);
 router.patch('/:id/recording', recordingUpload.single('recording'), attachRecording);
+router.get('/:id/recording', downloadRecording);
 
 module.exports = router;

@@ -3,7 +3,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
-const path = require('path');
 
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -20,7 +19,9 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Uploaded files (documents, resumes, recordings, leave attachments) are never
+// served as public static assets — each has its own authenticated, permission-
+// checked download route instead (see vault/leave/candidate/interview routes).
 
 app.use('/api', apiRoutes);
 

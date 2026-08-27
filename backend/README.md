@@ -108,7 +108,7 @@ src/
 
 ## Notes / known limitations
 
-- File uploads (documents, resumes, interview recordings) are stored on local disk under `uploads/`. Swap `middleware/upload.js` for S3/GCS storage in production.
+- File uploads (documents, resumes, leave attachments, interview recordings) are stored on local disk under `uploads/`. Swap `middleware/upload.js` for S3/GCS storage in production. **`uploads/` is never served as public static content** — every file is fetched through an authenticated, permission-checked download route instead: `GET /api/vault/document/:documentId/download`, `GET /api/leave/requests/:requestId/attachment`, `GET /api/candidates/:id/resume`, `GET /api/interviews/:id/recording`.
 - The AI Scribe requires `consentGiven: true` on both the transcript submission (`POST /api/interviews/:id/scribe`) and the recording attachment (`PATCH /api/interviews/:id/recording`), matching the user story's "بإذن المرشح" (with the candidate's consent) for each artifact.
 - Candidates have no login/user account, so scheduling an interview logs an outbound-notification placeholder (`console.log`, `Interview.candidateNotifiedAt`) instead of sending a real email/SMS — wire up a mail provider there for production.
 - Payroll records go through a draft → approved workflow: `POST /api/payroll/:employeeId` / `.../generate` create a `draft`, and `PATCH /api/payroll/:payrollId/approve` issues the payslip (visible to the employee, downloadable, and notified). A plain `employee` only ever sees `approved` records.

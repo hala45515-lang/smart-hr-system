@@ -1,3 +1,4 @@
+const path = require('path');
 const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const Interview = require('../models/Interview');
@@ -6,6 +7,7 @@ const aiService = require('../services/aiService');
 const schedulingService = require('../services/schedulingService');
 const { createNotification } = require('../services/notificationService');
 const { sendEmail } = require('../services/emailService');
+const { resolveUploadPath } = require('../utils/fileServe');
 
 // @desc  List interviews (optionally by candidate)
 // @route GET /api/interviews
@@ -185,11 +187,24 @@ const attachRecording = asyncHandler(async (req, res) => {
   ok(res, interview, 'Recording attached to candidate file');
 });
 
+// @desc  Download an interview recording (manager/hr_admin only, per the router gate above)
+// @route GET /api/interviews/:id/recording
+const downloadRecording = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id);
+  if (!interview) throw new ApiError(404, 'Interview not found');
+  if (!interview.videoRecordingUrl) throw new ApiError(404, 'This interview has no recording on file');
+
+  const filePath = resolveUploadPath(interview.videoRecordingUrl);
+  const ext = path.extname(filePath);
+  res.download(filePath, `interview-recording-${interview._id}${ext}`);
+});
+
 module.exports = {
   listInterviews,
   getInterview,
   createInterview,
   cancelInterview,
+  downloadRecording,
   runAiScribe,
   updateEvaluation,
   addNote,

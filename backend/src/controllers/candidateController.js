@@ -1,9 +1,11 @@
+const path = require('path');
 const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const Candidate = require('../models/Candidate');
 const Employee = require('../models/Employee');
 const User = require('../models/User');
 const CareerEvent = require('../models/CareerEvent');
+const { resolveUploadPath } = require('../utils/fileServe');
 
 const listCandidates = asyncHandler(async (req, res) => {
   const { job, stage } = req.query;
@@ -104,4 +106,16 @@ const addCandidateNote = asyncHandler(async (req, res) => {
   created(res, candidate, 'Note added');
 });
 
-module.exports = { listCandidates, getCandidate, createCandidate, updateCandidateStage, hireCandidate, addCandidateNote };
+// @desc  Download a candidate's resume (manager/hr_admin only, per the router gate above)
+// @route GET /api/candidates/:id/resume
+const downloadResume = asyncHandler(async (req, res) => {
+  const candidate = await Candidate.findById(req.params.id);
+  if (!candidate) throw new ApiError(404, 'Candidate not found');
+  if (!candidate.resumeUrl) throw new ApiError(404, 'This candidate has no resume on file');
+
+  const filePath = resolveUploadPath(candidate.resumeUrl);
+  const ext = path.extname(filePath);
+  res.download(filePath, `${candidate.name}-resume${ext}`);
+});
+
+module.exports = { listCandidates, getCandidate, createCandidate, updateCandidateStage, hireCandidate, addCandidateNote, downloadResume };

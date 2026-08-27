@@ -1,8 +1,11 @@
+const path = require('path');
 const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const Document = require('../models/Document');
 const Payroll = require('../models/Payroll');
+const Employee = require('../models/Employee');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
+const { resolveUploadPath } = require('../utils/fileServe');
 
 const REQUIRED_DOC_TYPES = ['contract', 'id'];
 
@@ -96,4 +99,23 @@ const deleteDocument = asyncHandler(async (req, res) => {
   ok(res, null, 'Document deleted');
 });
 
-module.exports = { listDocuments, uploadDocument, getSalaryHistory, reviewDocument, deleteDocument };
+// @desc  Download a previously uploaded document (the owning employee, their
+//        manager, or HR) — files are never served as public static assets.
+// @route GET /api/vault/document/:documentId/download
+const downloadDocument = asyncHandler(async (req, res) => {
+  const document = await Document.findById(req.params.documentId);
+  if (!document) throw new ApiError(404, 'Document not found');
+
+  if (req.user.role === 'employee') {
+    const own = await Employee.findOne({ user: req.user._id }).select('_id');
+    if (!own || String(own._id) !== String(document.employee)) {
+      throw new ApiError(403, 'You can only download your own documents');
+    }
+  }
+
+  const filePath = resolveUploadPath(document.fileUrl);
+  const ext = path.extname(filePath);
+  res.download(filePath, `${document.title}${ext}`);
+});
+
+module.exports = { listDocuments, uploadDocument, getSalaryHistory, reviewDocument, deleteDocument, downloadDocument };

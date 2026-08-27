@@ -6,6 +6,7 @@ const {
   listPendingLeaveRequests,
   decideLeaveRequest,
   cancelLeaveRequest,
+  downloadLeaveAttachment,
   setLeaveBalance,
 } = require('../controllers/leaveController');
 const { protect } = require('../middleware/auth');
@@ -27,5 +28,6 @@ router.post('/:employeeId/requests', allowRoles('manager', 'hr_admin'), leaveAtt
 
 router.patch('/requests/:requestId/decision', allowRoles('manager', 'hr_admin'), decideLeaveRequest);
 router.patch('/requests/:requestId/cancel', cancelLeaveRequest);
+router.get('/requests/:requestId/attachment', downloadLeaveAttachment);
 
 module.exports = router;

@@ -1138,7 +1138,7 @@
           "request": {
             "method": "GET",
             "url": { "raw": "{{base_url}}/dashboard", "host": ["{{base_url}}"], "path": ["dashboard"] },
-            "description": "manager/hr_admin only. Returns today's attendance counts, pending leave requests, documents expiring within 30 days, this month's payroll total, and a 7-day attendance trend."
+            "description": "hr_admin only. Returns today's attendance counts, pending leave requests, documents expiring within 30 days, this month's payroll total, and a 7-day attendance trend."
           }
         }
       ]

@@ -75,7 +75,7 @@ Most "my data" endpoints default to the logged-in user's own employee record whe
 | 12. Video Interview Native | `POST /api/interviews/:id/notes`, `PATCH /api/interviews/:id/recording` |
 | 13. Internal Referral / Transfer Network | `POST /api/referrals`, `GET /api/referrals`, `GET /api/referrals/:id/candidate-profile`, `PATCH /api/referrals/:id/decision` |
 
-Supporting modules: `/api/employees` (incl. `GET /:id/full-record` — attendance/leave/payroll/evaluations composed in one response), `/api/departments`, `/api/jobs` (each job includes an `applicantCount`), `/api/candidates` (incl. `POST /:id/notes`), `/api/attendance` (check-in/out, `POST /mark-absentees`), `/api/payroll` (draft → `PATCH /:payrollId/approve` → issued), `/api/leave-types`, `/api/notifications`, `/api/dashboard`, `/api/reports`, `/api/audit-logs`.
+Supporting modules: `/api/employees` (incl. `GET /:id/full-record` — attendance/leave/payroll/evaluations composed in one response), `/api/departments`, `/api/jobs` (each job includes an `applicantCount`), `/api/candidates` (incl. `POST /:id/notes`), `/api/attendance` (check-in/out, `POST /mark-absentees`), `/api/payroll` (draft → `PATCH /:payrollId/approve` → issued), `/api/leave-types`, `/api/notifications`, `/api/dashboard` (hr_admin only), `/api/reports` (hr_admin only), `/api/audit-logs`.
 
 ## Notifications & reminders
 

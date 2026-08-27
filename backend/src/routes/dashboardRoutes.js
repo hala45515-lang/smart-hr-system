@@ -5,7 +5,7 @@ const { allowRoles } = require('../middleware/role');
 
 const router = express.Router();
 router.use(protect);
-router.use(allowRoles('manager', 'hr_admin'));
+router.use(allowRoles('hr_admin'));
 
 router.get('/', getDashboardSummary);
 

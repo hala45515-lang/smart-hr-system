@@ -5,6 +5,7 @@ const Attendance = require('../models/Attendance');
 const LeaveRequest = require('../models/LeaveRequest');
 const Document = require('../models/Document');
 const Payroll = require('../models/Payroll');
+const { isWorkingDay } = require('../services/attendanceService');
 
 const startOfDay = (date) => {
   const d = new Date(date);
@@ -18,10 +19,11 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
   const today = startOfDay(new Date());
   const now = new Date();
 
-  const [activeEmployeeCount, todayRecords, pendingLeaveCount, expiringDocs, payrollThisMonth, trend] =
+  const [activeEmployees, todayRecords, approvedLeaveToday, pendingLeaveCount, expiringDocs, payrollThisMonth, trend] =
     await Promise.all([
-      Employee.countDocuments({ status: 'active' }),
+      Employee.find({ status: 'active' }).select('_id'),
       Attendance.find({ date: today }),
+      LeaveRequest.find({ status: 'approved', startDate: { $lte: today }, endDate: { $gte: today } }).select('employee'),
       LeaveRequest.countDocuments({ status: 'pending' }),
       Document.find({
         expiryDate: { $gte: now, $lte: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) },
@@ -44,9 +46,19 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       ]),
     ]);
 
-  const presentToday = todayRecords.filter((r) => r.status === 'present' || r.status === 'late').length;
+  const activeEmployeeCount = activeEmployees.length;
+  const presentIds = new Set(
+    todayRecords.filter((r) => r.status === 'present' || r.status === 'late').map((r) => String(r.employee))
+  );
+  const onLeaveIds = new Set(approvedLeaveToday.map((l) => String(l.employee)));
+
   const lateToday = todayRecords.filter((r) => r.status === 'late').length;
-  const absentToday = Math.max(activeEmployeeCount - presentToday, 0);
+  const presentToday = presentIds.size;
+  // An employee on approved leave today isn't "absent" — only count them once, and
+  // only if they haven't also somehow checked in (e.g. a half-day/edge case).
+  const onLeaveToday = activeEmployees.filter((e) => onLeaveIds.has(String(e._id)) && !presentIds.has(String(e._id))).length;
+  // On a weekend (Fri/Sat), nobody is expected to check in, so "absent" isn't meaningful.
+  const absentToday = isWorkingDay(today) ? Math.max(activeEmployeeCount - presentToday - onLeaveToday, 0) : 0;
 
   const attendanceTrend = {};
   trend.forEach(({ _id, count }) => {
@@ -59,6 +71,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       activeEmployeeCount,
       present: presentToday,
       absent: absentToday,
+      onLeave: onLeaveToday,
       late: lateToday,
     },
     pendingLeaveRequests: pendingLeaveCount,

@@ -48,7 +48,9 @@ const uploadDocument = asyncHandler(async (req, res) => {
 // @route GET /api/vault/:employeeId?/salary-history
 const getSalaryHistory = asyncHandler(async (req, res) => {
   const employeeId = await resolveEmployeeId(req);
-  const records = await Payroll.find({ employee: employeeId }).sort({ year: 1, month: 1 });
+  const filter = { employee: employeeId };
+  if (req.user.role === 'employee') filter.status = 'approved';
+  const records = await Payroll.find(filter).sort({ year: 1, month: 1 });
 
   const byYear = {};
   records.forEach((r) => {

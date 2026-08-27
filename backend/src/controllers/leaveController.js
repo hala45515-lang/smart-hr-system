@@ -2,8 +2,10 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ApiError, ok, created } = require('../utils/apiResponse');
 const LeaveRequest = require('../models/LeaveRequest');
 const LeaveBalance = require('../models/LeaveBalance');
+const LeaveType = require('../models/LeaveType');
 const Employee = require('../models/Employee');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
+const { parseDateOnly } = require('../utils/dateOnly');
 const { findLeaveConflicts, createNotification } = require('../services/notificationService');
 
 const daysBetween = (start, end) => Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -31,11 +33,36 @@ const assertCanActOnLeaveRequest = async (req, leaveRequest) => {
   }
 };
 
-// @desc  Get leave balances for the current year (how many days left, no need to ask)
+/**
+ * Finds an employee's leave balance for a type/year, auto-provisioning it from
+ * the leave type's defaultDaysPerYear if it doesn't exist yet (new hires, or a
+ * leave type added after the employee joined). Without this, a missing balance
+ * silently skipped the insufficient-balance check in createLeaveRequest below.
+ */
+const ensureBalance = async (employeeId, leaveTypeId, year) => {
+  let balance = await LeaveBalance.findOne({ employee: employeeId, leaveType: leaveTypeId, year });
+  if (!balance) {
+    const leaveType = await LeaveType.findById(leaveTypeId);
+    if (!leaveType) throw new ApiError(400, 'Invalid leaveType');
+    balance = await LeaveBalance.create({
+      employee: employeeId,
+      leaveType: leaveTypeId,
+      year,
+      totalDays: leaveType.defaultDaysPerYear,
+      usedDays: 0,
+    });
+  }
+  return balance;
+};
+
+// @desc  Get leave balances for the current year (how many days left, no need to ask).
+//        Auto-provisions a balance for every leave type the employee doesn't have one for yet.
 // @route GET /api/leave/:employeeId?/balances
 const getBalances = asyncHandler(async (req, res) => {
   const employeeId = await resolveEmployeeId(req);
   const year = Number(req.query.year) || new Date().getFullYear();
+  const leaveTypes = await LeaveType.find();
+  await Promise.all(leaveTypes.map((lt) => ensureBalance(employeeId, lt._id, year)));
   const balances = await LeaveBalance.find({ employee: employeeId, year }).populate('leaveType', 'name');
   ok(res, balances);
 });
@@ -47,14 +74,22 @@ const createLeaveRequest = asyncHandler(async (req, res) => {
   const { leaveType, startDate, endDate, reason } = req.body;
   if (!leaveType || !startDate || !endDate) throw new ApiError(400, 'leaveType, startDate and endDate are required');
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // parseDateOnly avoids a UTC/local calendar-day mismatch with Attendance.date /
+  // "today" elsewhere in the app (see utils/dateOnly.js for why).
+  const start = parseDateOnly(startDate);
+  const end = parseDateOnly(endDate);
   if (end < start) throw new ApiError(400, 'endDate must be after startDate');
   const days = daysBetween(start, end);
 
+  const leaveTypeDoc = await LeaveType.findById(leaveType);
+  if (!leaveTypeDoc) throw new ApiError(400, 'Invalid leaveType');
+
   const year = start.getFullYear();
-  const balance = await LeaveBalance.findOne({ employee: employeeId, leaveType, year });
-  if (balance && balance.totalDays - balance.usedDays < days) {
+  const balance = await ensureBalance(employeeId, leaveType, year);
+  // Unpaid leave has no day allowance to enforce by design — it's unpaid precisely
+  // because it isn't drawn from a capped, paid balance.
+  const isUnpaid = leaveTypeDoc.name.trim().toLowerCase() === 'unpaid';
+  if (!isUnpaid && balance.totalDays - balance.usedDays < days) {
     throw new ApiError(400, 'Insufficient leave balance for the requested range');
   }
 
@@ -133,10 +168,12 @@ const decideLeaveRequest = asyncHandler(async (req, res) => {
 
   if (decision === 'approved') {
     const year = leaveRequest.startDate.getFullYear();
-    await LeaveBalance.findOneAndUpdate(
+    // ensureBalance rather than a raw upsert, so a missing balance falls back to
+    // this leave type's own defaultDaysPerYear instead of a hardcoded number.
+    await ensureBalance(leaveRequest.employee._id, leaveRequest.leaveType, year);
+    await LeaveBalance.updateOne(
       { employee: leaveRequest.employee._id, leaveType: leaveRequest.leaveType, year },
-      { $inc: { usedDays: leaveRequest.days } },
-      { upsert: true, setDefaultsOnInsert: { totalDays: 21 } }
+      { $inc: { usedDays: leaveRequest.days } }
     );
   }
 

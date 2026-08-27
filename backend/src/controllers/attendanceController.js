@@ -3,6 +3,7 @@ const { ApiError, ok, created } = require('../utils/apiResponse');
 const Attendance = require('../models/Attendance');
 const { resolveEmployeeId } = require('../utils/resolveEmployee');
 const { markAbsentees } = require('../services/attendanceService');
+const { parseDateOnly } = require('../utils/dateOnly');
 
 const startOfDay = (date) => {
   const d = new Date(date);
@@ -55,8 +56,11 @@ const getAttendance = asyncHandler(async (req, res) => {
   const filter = { employee: employeeId };
   if (from || to) {
     filter.date = {};
-    if (from) filter.date.$gte = new Date(from);
-    if (to) filter.date.$lte = new Date(to);
+    // parseDateOnly matches how Attendance.date is stored (local midnight) —
+    // otherwise a plain "YYYY-MM-DD" query param parses as UTC midnight and can
+    // miss/include records depending on the server's timezone offset.
+    if (from) filter.date.$gte = parseDateOnly(from);
+    if (to) filter.date.$lte = parseDateOnly(to);
   }
   const records = await Attendance.find(filter).sort({ date: -1 });
   ok(res, records);
@@ -67,7 +71,7 @@ const getAttendance = asyncHandler(async (req, res) => {
 //        every night via cron, but can also be triggered manually/for testing.
 // @route POST /api/attendance/mark-absentees
 const runAbsenceSweep = asyncHandler(async (req, res) => {
-  const date = req.body.date ? new Date(req.body.date) : new Date();
+  const date = req.body.date ? parseDateOnly(req.body.date) : new Date();
   const result = await markAbsentees(date);
   ok(res, result, 'Absence sweep processed');
 });

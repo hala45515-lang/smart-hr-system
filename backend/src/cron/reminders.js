@@ -5,6 +5,7 @@ const {
   checkExpiringDocuments,
   checkForgottenCheckouts,
   checkRepeatedLateness,
+  checkRepeatedAbsence,
   checkStaleEmergencyInfo,
 } = require('../services/notificationService');
 const { markAbsentees } = require('../services/attendanceService');
@@ -20,6 +21,7 @@ const scheduleReminders = () => {
       await checkUpcomingTasks();
       await checkExpiringDocuments();
       await checkRepeatedLateness();
+      await checkRepeatedAbsence();
       await checkStaleEmergencyInfo();
       console.log('[cron] Daily HR reminders processed');
     } catch (err) {

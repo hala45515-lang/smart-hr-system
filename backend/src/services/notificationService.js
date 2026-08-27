@@ -153,24 +153,24 @@ const checkForgottenCheckouts = async (cutoffHour = 20) => {
 };
 
 /**
- * Scans the current month's attendance for employees with repeated lateness
- * (>= threshold late days) and notifies their manager and HR admins.
+ * Scans the current month's attendance for employees with a repeated status
+ * (>= threshold days of 'late' or 'absent') and notifies their manager and HR admins.
  */
-const checkRepeatedLateness = async (threshold = 3) => {
+const checkRepeatedAttendanceIssue = async (status, threshold, label) => {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-  const lateCounts = await Attendance.aggregate([
-    { $match: { date: { $gte: start, $lte: end }, status: 'late' } },
+  const counts = await Attendance.aggregate([
+    { $match: { date: { $gte: start, $lte: end }, status } },
     { $group: { _id: '$employee', count: { $sum: 1 } } },
     { $match: { count: { $gte: threshold } } },
   ]);
-  if (!lateCounts.length) return;
+  if (!counts.length) return;
 
   const hrAdmins = await User.find({ role: 'hr_admin' }).select('_id');
 
-  for (const entry of lateCounts) {
+  for (const entry of counts) {
     const employee = await Employee.findById(entry._id).populate('user', 'name').populate('manager');
     if (!employee) continue;
 
@@ -184,13 +184,16 @@ const checkRepeatedLateness = async (threshold = 3) => {
       await createNotification({
         userId,
         type: 'general',
-        title: 'Repeated lateness detected',
-        message: `${employee.user?.name || 'An employee'} has been late ${entry.count} time(s) this month.`,
-        meta: { employeeId: employee._id, lateCount: entry.count },
+        title: `Repeated ${label} detected`,
+        message: `${employee.user?.name || 'An employee'} has been ${label} ${entry.count} time(s) this month.`,
+        meta: { employeeId: employee._id, count: entry.count, status },
       });
     }
   }
 };
+
+const checkRepeatedLateness = (threshold = 3) => checkRepeatedAttendanceIssue('late', threshold, 'late');
+const checkRepeatedAbsence = (threshold = 3) => checkRepeatedAttendanceIssue('absent', threshold, 'absent');
 
 /**
  * Reminds employees whose emergency contact/medical info has never been set,
@@ -229,5 +232,6 @@ module.exports = {
   checkExpiringDocuments,
   checkForgottenCheckouts,
   checkRepeatedLateness,
+  checkRepeatedAbsence,
   checkStaleEmergencyInfo,
 };

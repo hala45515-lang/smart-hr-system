@@ -87,10 +87,10 @@ const exportAttendanceReport = asyncHandler(async (req, res) => {
   await sendExcel(res, filename, attendanceColumns, rows);
 });
 
-// @desc  Turnover rate for a period: exits / average headcount, %
-// @route GET /api/reports/turnover
-const getTurnoverReport = asyncHandler(async (req, res) => {
-  const { month, year } = req.query;
+/**
+ * Builds the turnover rate for a period: exits / average headcount, %.
+ */
+const buildTurnoverReport = async ({ month, year }) => {
   const { start, end, month: m, year: y } = monthRange(month, year);
 
   const [exits, hires, headcountNow] = await Promise.all([
@@ -103,7 +103,36 @@ const getTurnoverReport = asyncHandler(async (req, res) => {
   const averageHeadcount = (headcountNow + startHeadcount) / 2 || 1;
   const turnoverRate = Math.round((exits / averageHeadcount) * 1000) / 10;
 
-  ok(res, { period: `${m}/${y}`, exits, hires, averageHeadcount, turnoverRatePercent: turnoverRate });
+  return { period: `${m}/${y}`, exits, hires, averageHeadcount, turnoverRatePercent: turnoverRate };
+};
+
+// @desc  Turnover rate for a period: exits / average headcount, %
+// @route GET /api/reports/turnover
+const getTurnoverReport = asyncHandler(async (req, res) => {
+  const { month, year } = req.query;
+  const report = await buildTurnoverReport({ month, year });
+  ok(res, report);
+});
+
+const turnoverColumns = [
+  { header: 'Period', key: 'period', width: 15 },
+  { header: 'Exits', key: 'exits', width: 12 },
+  { header: 'Hires', key: 'hires', width: 12 },
+  { header: 'Average Headcount', key: 'averageHeadcount', width: 20 },
+  { header: 'Turnover Rate (%)', key: 'turnoverRatePercent', width: 20 },
+];
+
+// @desc  Export the turnover report as Excel or PDF
+// @route GET /api/reports/turnover/export?format=excel|pdf
+const exportTurnoverReport = asyncHandler(async (req, res) => {
+  const { month, year, format = 'excel' } = req.query;
+  const report = await buildTurnoverReport({ month, year });
+  const filename = `turnover-report-${report.period.replace('/', '-')}`;
+
+  if (format === 'pdf') {
+    return sendPdfTable(res, filename, `Turnover Report — ${report.period}`, turnoverColumns, [report]);
+  }
+  await sendExcel(res, filename, turnoverColumns, [report]);
 });
 
 /**
@@ -238,6 +267,7 @@ module.exports = {
   getAttendanceReport,
   exportAttendanceReport,
   getTurnoverReport,
+  exportTurnoverReport,
   getDepartmentPerformanceReport,
   exportDepartmentPerformanceReport,
   getDepartmentAttendanceLeaveReport,
